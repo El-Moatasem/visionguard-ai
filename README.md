@@ -4,7 +4,7 @@
 
 **Meta Global AI Developer Hackathon 2026** · Indie Developer · Push the Frontier
 
-> **Current stage: Day 1 research/proof of connectivity only.** This repository is a starter scaffold, **not** a completed visual safety application. It has no production video upload UI, hazard detector, persistent database, or certified safety functionality. No remote Meta calls have been run by the starter's creator without your API key.
+> **Current stage: Video ingestion foundation.** FastAPI upload/list/playback and a mobile-first Next.js frontend are included. This is **not** a hazard detector, live monitoring system, or certified safety application. Live remote Meta calls were not executed during package generation.
 
 VisionGuard aims to help safety reviewers analyze short, authorized workplace videos. The proposed workflow is: detect/track people and vehicles using SAM 3.1; interpret reviewer-specified monitoring rules with Muse Spark; evaluate temporal events deterministically; show evidence with timestamped, human-reviewable incident reports. It **must not** be used as a replacement for trained safety professionals or real-time emergency protection.
 
@@ -21,7 +21,7 @@ VisionGuard aims to help safety reviewers analyze short, authorized workplace vi
 | Period | Planned milestone | Implementation status |
 |---|---|---|
 | Day 1 | Model account, Muse ping, SAM video tracking outputs | **Starter code included; real API validation pending** |
-| Day 2 | Upload API, Next.js interface, video playback | Planned |
+| Day 2 | Upload API, Next.js interface, video playback | **Implemented in `feature/video-ingestion`; validate locally** |
 | Days 3–4 | Persistent track IDs + overlays | Planned |
 | Days 5–6 | Muse rule translation + deterministic event logic | Planned |
 | Days 7–8 | Evidence dashboard and incident timeline | Planned |
@@ -139,8 +139,10 @@ visionguard-ai/
 │   │       └── sam.py              # SAM upload, parse, track summary, SVG output
 │   ├── scripts/meta_smoke.py       # CLI
 │   └── tests/test_day1.py         # offline unit tests
-├── frontend/                       # Day 2 planned, not implemented
+├── frontend/                       # Next.js mobile-first upload/camera/playback app
 ├── docs/                           # stage by stage plan and acceptance gates
+├── benchmarks/                     # annotation example (no actual licensed clips)
+├── var/                            # ignored local uploads, created at runtime
 ├── samples/                        # ignored local video inputs
 ├── outputs/                        # ignored generated segmentation artifacts
 ├── examples/                       # data rights notes
@@ -152,7 +154,7 @@ visionguard-ai/
 
 ## Important architecture choices
 
-- The server does **not** expose a public video-upload endpoint on Day 1. We first validate the SAM hosted API using a controlled local CLI.
+- Video upload/list/playback endpoints are now included for **local prototype use only**. They are NOT production-safe without authentication and abuse prevention.
 - SAM returns masks and track geometry, not a guarantee of safety compliance, physical distance, or collision prediction.
 - The proposed event engine will use deterministic rules over normalized tracks, with **reviewer-configured** operating zones and explicit uncertainty.
 - Muse Spark can interpret instructions and help configure a rule but should not override deterministic checks or certify safety conclusions.
@@ -160,7 +162,7 @@ visionguard-ai/
 
 ## Deployment recommendation
 
-**Day 1:** run locally. **Day 7 or 8:** deploy an API/demo to Render if the application is stable. **Neon PostgreSQL:** add only after incident persistence is needed (e.g. days 7–8). A SQL database is not video storage; use separate object storage for uploads. Render free instances may sleep and have ephemeral disk; see [`docs/07-deployment.md`](docs/07-deployment.md). For the final judged demo, consider a paid stable service or a local demo plus recording as a reliability fallback.
+**Current feature:** run locally. **Day 7 or 8:** deploy an API/demo to Render if the application is stable and protected by authentication. **Neon PostgreSQL:** add only after incident persistence is needed (e.g. days 7–8). A SQL database is not video storage; use separate object storage for uploads. Render free instances may sleep and have ephemeral disk; see [`docs/07-deployment.md`](docs/07-deployment.md). For the final judged demo, consider a paid stable service or a local demo plus recording as a reliability fallback.
 
 ## GitHub setup (after permitted start or organizer approval)
 
@@ -197,3 +199,54 @@ See [the feature-based Git workflow](docs/09-git-workflow.txt). Use `main` for s
 - `feature/benchmark-demo`
 
 Branches **do not contain day numbers**. They remain meaningful if you complete the core MVP in five days, a week, or longer. The day-numbered stage documents describe planning milestones, not mandatory delivery dates or Git branch names. **Do not force-push or delete existing `.git` history.**
+
+
+## Feature branch: mobile-first video ingestion (NEW)
+
+This codebase adds a working ingest/playback foundation to the original Day 1
+Meta validation scaffold. It **does not** generate or display AI hazard alerts.
+
+**Run backend and frontend in separate terminals:**
+
+```bash
+# Terminal A, repository root, after installing requirements
+uvicorn backend.app.main:app --reload --port 8000
+
+# Terminal B
+cd frontend
+npm install
+npm run typecheck
+npm run build
+npm run dev
+```
+
+Open **http://localhost:3000**. Select a licensed MP4/MOV/WebM clip, upload it,
+then play it back. Use **Capture with phone** for the phone camera input.
+The live camera preview requires HTTPS or localhost; the recorder produces a
+short clip, **not real-time safety detection**. Uploaded WebM clips need
+transcoding before later SAM analysis.
+
+**API endpoints:**
+- `POST /api/v1/videos` — multipart upload (`file`, 25 MiB maximum by default).
+- `GET /api/v1/videos` — recent video metadata.
+- `GET /api/v1/videos/{id}` — metadata by ID.
+- `GET /api/v1/videos/{id}/file` — video playback with byte-range support.
+
+**Privacy:** uploads live in ignored `var/uploads` and are served without
+authentication **only for local prototyping**. Do not expose this API to the
+public without access control, quotas, retention/deletion and storage hardening.
+
+**Testing:** `python -m pytest backend/tests -q` (15 offline checks passed
+during packaging); `cd frontend && npm run typecheck && npm run build` after
+`npm install` (requires verification on your machine).
+
+**Git and PR guides:**
+- [`docs/GIT_FLOW_FEATURE_VIDEO_INGESTION.txt`](docs/GIT_FLOW_FEATURE_VIDEO_INGESTION.txt) — 5 staged commits, safe copying into your existing Git checkout and merge order.
+- [`docs/PR_1_feature_video_ingestion_to_develop.txt`](docs/PR_1_feature_video_ingestion_to_develop.txt) — feature PR description.
+- [`docs/PR_2_develop_to_main.txt`](docs/PR_2_develop_to_main.txt) — release PR description.
+- [`docs/RUN_LOCAL_VIDEO_INGESTION.txt`](docs/RUN_LOCAL_VIDEO_INGESTION.txt) — exact local commands.
+- [`docs/10-mobile-ingestion-and-safety.md`](docs/10-mobile-ingestion-and-safety.md) — privacy/deployment notes.
+- [`docs/11-tracking-reliability.md`](docs/11-tracking-reliability.md) — occlusion-first design for next branch.
+- [`docs/12-benchmark-plan.md`](docs/12-benchmark-plan.md) — licensed/synthetic benchmark plan.
+
+**No Render or Neon required yet.** Focus on a reproducible local demo first.

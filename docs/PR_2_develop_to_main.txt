@@ -1,0 +1,43 @@
+VISIONGUARD AI — PULL REQUEST #2 TEMPLATE
+========================================
+Repository: El-Moatasem/visionguard-ai
+Base/target: main
+Compare/head: develop
+Type: Release / integration promotion
+Assignee: El-Moatasem
+Reviewer: Self-review
+Status: CREATE ONLY AFTER PR #1 MERGES INTO develop and all release checks pass.
+
+TITLE
+chore(release): promote video ingestion foundation to main
+
+DESCRIPTION — COPY INTO GITHUB
+## Summary
+Promotes the tested VisionGuard video ingestion MVP from `develop` into the stable `main` branch. The release includes the preserved Day 1 Meta API smoke tools and the new video capture, upload, and playback functionality.
+
+## Release contents
+- Meta API configuration and existing SAM/Muse smoke tests (no claim of successful remote runs).
+- FastAPI bounded video ingestion, metadata and HTTP byte-range playback.
+- React/Next.js mobile-friendly camera capture and video workspace.
+- Offline backend test suite, frontend typecheck/build workflow and documentation.
+- Tracking reliability and benchmark design notes for subsequent development.
+
+## Required verification before merge
+- [ ] Feature PR merged into `develop`.
+- [ ] `develop` GitHub backend tests pass.
+- [ ] `develop` GitHub frontend typecheck/build passes.
+- [ ] End-to-end local upload/playback smoke test performed.
+- [ ] No `.env`, API keys, personal videos or sensitive uploads committed.
+- [ ] `git diff main...develop` checked for unexpected changes.
+- [ ] Project contribution dates and reuse declared per hackathon rules.
+
+## Honest release status
+This is an ingestion foundation, not a safety monitoring product. Live SAM 3.1, Muse Spark, hazard detection, track stability, benchmarks, or accident prediction are NOT verified by this PR. No claims of safety certification.
+
+## Next step
+Create `feature/object-tracking` from an updated `develop` branch; do not create from the obsolete `meta-ai-validation` head.
+
+GITHUB: https://github.com/El-Moatasem/visionguard-ai/compare/main...develop?expand=1
+CLI: gh pr create --base main --head develop --title "chore(release): promote video ingestion foundation to main" --body-file docs/PR_2_develop_to_main.txt --draft
+
+Note: Copy only DESCRIPTION content into GitHub, or use the dedicated PR body section.
