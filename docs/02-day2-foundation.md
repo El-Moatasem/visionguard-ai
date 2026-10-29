@@ -1,22 +1,50 @@
-# Day 2 — FastAPI + Next.js foundation (planned, not implemented)
+# Stage: Video ingestion & mobile-friendly playback
 
-## Goal
-Build a usable local video upload and playback prototype on top of Day 1 verified API access.
+**Branch**: `feature/video-ingestion` → `develop` → `main` (after QA)
 
-## Implementation tasks
-- Scaffold `frontend/` using Next.js, TypeScript, Tailwind and an accessible video player.
-- Add a FastAPI upload route with strict size/container checks, local opt-in storage, generated safe filenames, MIME sniffing, request body limits, and cleanup strategy.
-- Separate upload and analysis jobs; do not run long Meta calls synchronously in user-facing HTTP handlers.
-- Expose typed API responses: clip ID, upload status, analysis status, sanitized error details.
-- Restrict CORS to local frontend origin, do not log auth tokens or raw video paths.
-- Provide clear notice that video is transmitted to Meta when user explicitly initiates analysis.
+## Implemented in this feature
+- Next.js/React mobile-responsive frontend with file selection, native mobile camera file capture, and optional live preview + 15-second MediaRecorder recording.
+- FastAPI multipart ingestion with streamed 1 MiB chunks and a 25 MiB default limit.
+- Server-side MP4/MOV/WebM container signature check, SHA-256, UUID-based filenames, JSON metadata and local private-by-convention storage.
+- Browser video playback (`FileResponse`, including byte ranges) and recent-uploads listing.
+- Next.js same-origin `/api/backend/*` rewrite to FastAPI; no Meta credentials in the browser.
+- Seven new offline ingestion tests. Existing eight Day 1 tests continue to pass.
 
-## Acceptance tests
-- [ ] Valid MP4 uploads and plays locally.
-- [ ] Invalid/oversized uploads fail safely with 4xx responses.
-- [ ] Upload path traversal attempts are rejected.
-- [ ] User sees analysis-in-progress/failed states.
-- [ ] Original video never goes into public Git history.
+## Acceptance commands
 
-## Prioritize
-Functional input/output and error handling over branding and user accounts. No database required.
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python -m pytest backend/tests -q
+uvicorn backend.app.main:app --reload --port 8000
+```
+
+In another terminal:
+
+```bash
+cd frontend
+npm install
+npm run typecheck
+npm run build
+npm run dev
+```
+
+Open http://localhost:3000, upload a **licensed** short MP4, select it from the list, and play it. Test the browser Range response via backend API.
+
+```bash
+curl http://127.0.0.1:8000/health
+curl -F 'file=@samples/warehouse.mp4' http://127.0.0.1:8000/api/v1/videos
+```
+
+## Scope limits and risks
+- No hazard analysis, track overlays, incident classification, benchmark score, persistent database, authentication, or public access control is implemented here.
+- A correct MP4/WebM container signature does **not** prove full file/codec validity. File magic alone is not a malware scan.
+- WebM clips are stored/playable but require conversion to a compatible MP4 before using the existing SAM CLI.
+- Mobile `getUserMedia` requires HTTPS or localhost. The `capture` file input is the pragmatic fallback.
+- Public deployment is **not safe** until authentication, upload quotas, abuse protection, privacy notices, lifecycle deletion, and object storage are added.
+- Original Day 1 Meta smoke scripts are kept; they are not invoked by the upload UI.
+- React dependency install and build must be executed locally; this ZIP's backend tests do not certify the frontend runtime.
+
+## Next stage
+`feature/object-tracking`: implement ffprobe/FFmpeg normalization, upload-to-SAM job queue, `track_id` namespacing per concept, coordinate normalization, overlay rendering, and explicit occlusion uncertainty states. See `docs/11-tracking-reliability.md`.
