@@ -1,0 +1,20 @@
+{
+  "schema_version": "0.1",
+  "description": "Illustrative annotation only; no actual benchmark result or rights grant.",
+  "clips": [
+    {
+      "video_id": "example_001",
+      "relative_path": "samples/REPLACE_WITH_LICENSED_VIDEO.mp4",
+      "source": "REPLACE_WITH_URL_OR_INTERNAL_CONSENT_RECORD",
+      "license_or_permission": "RECORD_VERIFIED_RIGHTS_HERE",
+      "split": "development",
+      "verified_ground_truth": false,
+      "scenario": "pedestrian_in_forklift_zone",
+      "fixed_camera": true,
+      "restricted_zone_polygon_normalized": [[0.2, 0.2], [0.8, 0.2], [0.8, 0.8], [0.2, 0.8]],
+      "annotated_events_seconds": [],
+      "occlusion_present": false,
+      "notes": "Coordinates are illustrative and must be redrawn for the real clip."
+    }
+  ]
+}
