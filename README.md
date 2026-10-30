@@ -4,7 +4,7 @@
 
 **Meta Global AI Developer Hackathon 2026** · Indie Developer · Push the Frontier
 
-> **Current stage: Video ingestion foundation.** FastAPI upload/list/playback and a mobile-first Next.js frontend are included. This is **not** a hazard detector, live monitoring system, or certified safety application. Live remote Meta calls were not executed during package generation.
+> **Current stage: Video ingestion plus object-tracking foundation.** FastAPI upload/list/playback and a mobile-first Next.js frontend are included. This is **not** a hazard detector, live monitoring system, or certified safety application. Live remote Meta calls were not executed during package generation.
 
 VisionGuard aims to help safety reviewers analyze short, authorized workplace videos. The proposed workflow is: detect/track people and vehicles using SAM 3.1; interpret reviewer-specified monitoring rules with Muse Spark; evaluate temporal events deterministically; show evidence with timestamped, human-reviewable incident reports. It **must not** be used as a replacement for trained safety professionals or real-time emergency protection.
 
@@ -22,7 +22,7 @@ VisionGuard aims to help safety reviewers analyze short, authorized workplace vi
 |---|---|---|
 | Day 1 | Model account, Muse ping, SAM video tracking outputs | **Starter code included; real API validation pending** |
 | Day 2 | Upload API, Next.js interface, video playback | **Implemented in `feature/video-ingestion`; validate locally** |
-| Days 3–4 | Persistent track IDs + overlays | Planned |
+| Days 3–4 | SAM tracks, fragment uncertainty + approximate box overlays | **Implemented in `feature/object-tracking`; live verification pending** |
 | Days 5–6 | Muse rule translation + deterministic event logic | Planned |
 | Days 7–8 | Evidence dashboard and incident timeline | Planned |
 | Days 9–10 | Benchmark, demo, submission | Planned (compress to fit official dates) |
@@ -124,7 +124,7 @@ Open `summary.json` in a code editor. A completed request with zero matches is *
 python -m pytest backend/tests -q
 ```
 
-The automated suite checks the FastAPI endpoints, key secrecy, CLI status, request construction, file guards, and stream-event normalization. These tests **do not call Meta** and do not demonstrate SAM's real-world tracking accuracy.
+The automated suite checks the ingestion and tracking endpoints, key secrecy, CLI status, result normalization, missing-frame gaps, and mocked job execution. These tests **do not call Meta** and do not demonstrate SAM's real-world tracking accuracy.
 
 ## Repository map
 
@@ -164,21 +164,6 @@ visionguard-ai/
 
 **Current feature:** run locally. **Day 7 or 8:** deploy an API/demo to Render if the application is stable and protected by authentication. **Neon PostgreSQL:** add only after incident persistence is needed (e.g. days 7–8). A SQL database is not video storage; use separate object storage for uploads. Render free instances may sleep and have ephemeral disk; see [`docs/07-deployment.md`](docs/07-deployment.md). For the final judged demo, consider a paid stable service or a local demo plus recording as a reliability fallback.
 
-## GitHub setup (after permitted start or organizer approval)
-
-Create a GitHub repository named `visionguard-ai` as **Public**, with no automatic README/license if you upload this ZIP as a new repository. From the extracted root:
-
-```bash
-git init
-git add .
-git commit -m "chore: initialize VisionGuard Day 1 scaffold"
-git branch -M main
-git remote add origin https://github.com/El-Moatasem/visionguard-ai.git
-git push -u origin main
-```
-
-If you already created the remote with a README, clone it first and copy these files into it rather than force-pushing. Confirm what work may count toward the event before pushing/demonstrating the pre-event starter.
-
 ## Data protection and evaluation
 
 Research/demo only. Do not make safety-critical decisions based on detections. Keep sample footage private and consented. The project will need an evaluation set including hazard events, non-events, occlusions, false positives, and ambiguous situations before making meaningful performance claims.
@@ -187,32 +172,34 @@ Research/demo only. Do not make safety-critical decisions based on detections. K
 
 MIT for *this project's original source* only. Third-party dependencies, Meta models, video footage and external examples retain their own separate licenses/terms. See official documentation before incorporating any example assets.
 
-## Git branches — organized by feature, not development day
 
-See [the feature-based Git workflow](docs/09-git-workflow.txt). Use `main` for stable releases, `develop` for integration, and short-lived branches such as:
+## Milestone 3 - SAM object tracking (new)
 
-- `feature/meta-ai-validation`
-- `feature/video-ingestion`
-- `feature/object-tracking`
-- `feature/safety-rule-engine`
-- `feature/evidence-dashboard`
-- `feature/benchmark-demo`
+After uploading an authorized **MP4/MOV** clip (H.264 preferred, <=30 seconds for this demo), select it in the player and click **Analyze with SAM (billable)**. The backend uses your local `MODEL_API_KEY` and makes two SAM 3.1 requests (`person` and `forklift`). The UI polls for results and shows box overlays and observed track fragments.
 
-Branches **do not contain day numbers**. They remain meaningful if you complete the core MVP in five days, a week, or longer. The day-numbered stage documents describe planning milestones, not mandatory delivery dates or Git branch names. **Do not force-push or delete existing `.git` history.**
+New tracking endpoints:
 
+- `POST /api/v1/videos/{video_id}/tracking-jobs` - explicitly start billable local job (202).
+- `GET /api/v1/videos/{video_id}/tracking-jobs` - recent job statuses.
+- `GET /api/v1/tracking-jobs/{job_id}` - status and error-safe message.
+- `GET /api/v1/tracking-jobs/{job_id}/result` - normalized boxes, track fragments and gaps.
 
-## Feature branch: mobile-first video ingestion (NEW)
+The jobs run in a **single FastAPI process only** and are not durable across restarts. Both videos and results are stored privately under ignored `var/`. Output from Meta can be empty; that is a valid case. A missing observation breaks verified track continuity; we do not reidentify people from guesswork. Browser overlay timing is an **approximation**, not frame-accurate evidence or live monitoring.
 
-This codebase adds a working ingest/playback foundation to the original Day 1
-Meta validation scaffold. It **does not** generate or display AI hazard alerts.
+Read [object-tracking architecture](docs/architecture/object-tracking-pipeline.md), [milestone 3](docs/milestones/03-object-tracking.md), [occlusion policy](docs/features/tracking-identity-uncertainty.md), and [player caveats](docs/features/video-overlay.md).
 
-**Run backend and frontend in separate terminals:**
+**Run locally:**
 
 ```bash
-# Terminal A, repository root, after installing requirements
-uvicorn backend.app.main:app --reload --port 8000
+# Terminal 1 (repository root)
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp -n .env.example .env  # Set MODEL_API_KEY locally for paid inference
+python -m pytest backend/tests -q
+uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
 
-# Terminal B
+# Terminal 2
 cd frontend
 npm install
 npm run typecheck
@@ -220,33 +207,4 @@ npm run build
 npm run dev
 ```
 
-Open **http://localhost:3000**. Select a licensed MP4/MOV/WebM clip, upload it,
-then play it back. Use **Capture with phone** for the phone camera input.
-The live camera preview requires HTTPS or localhost; the recorder produces a
-short clip, **not real-time safety detection**. Uploaded WebM clips need
-transcoding before later SAM analysis.
-
-**API endpoints:**
-- `POST /api/v1/videos` — multipart upload (`file`, 25 MiB maximum by default).
-- `GET /api/v1/videos` — recent video metadata.
-- `GET /api/v1/videos/{id}` — metadata by ID.
-- `GET /api/v1/videos/{id}/file` — video playback with byte-range support.
-
-**Privacy:** uploads live in ignored `var/uploads` and are served without
-authentication **only for local prototyping**. Do not expose this API to the
-public without access control, quotas, retention/deletion and storage hardening.
-
-**Testing:** `python -m pytest backend/tests -q` (15 offline checks passed
-during packaging); `cd frontend && npm run typecheck && npm run build` after
-`npm install` (requires verification on your machine).
-
-**Git and PR guides:**
-- [`docs/GIT_FLOW_FEATURE_VIDEO_INGESTION.txt`](docs/GIT_FLOW_FEATURE_VIDEO_INGESTION.txt) — 5 staged commits, safe copying into your existing Git checkout and merge order.
-- [`docs/PR_1_feature_video_ingestion_to_develop.txt`](docs/PR_1_feature_video_ingestion_to_develop.txt) — feature PR description.
-- [`docs/PR_2_develop_to_main.txt`](docs/PR_2_develop_to_main.txt) — release PR description.
-- [`docs/RUN_LOCAL_VIDEO_INGESTION.txt`](docs/RUN_LOCAL_VIDEO_INGESTION.txt) — exact local commands.
-- [`docs/10-mobile-ingestion-and-safety.md`](docs/10-mobile-ingestion-and-safety.md) — privacy/deployment notes.
-- [`docs/11-tracking-reliability.md`](docs/11-tracking-reliability.md) — occlusion-first design for next branch.
-- [`docs/12-benchmark-plan.md`](docs/12-benchmark-plan.md) — licensed/synthetic benchmark plan.
-
-**No Render or Neon required yet.** Focus on a reproducible local demo first.
+Open `http://localhost:3000`, upload a video, select it, and click Analyze. **Do not deploy these unauthenticated endpoints on a public host.** Automated tests are offline; real Meta SAM inference, playback alignment, privacy/retention and safety accuracy must be validated separately.
