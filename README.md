@@ -4,7 +4,7 @@
 
 **Meta Global AI Developer Hackathon 2026** · Indie Developer · Push the Frontier
 
-> **Current stage: Video ingestion plus object-tracking foundation.** FastAPI upload/list/playback and a mobile-first Next.js frontend are included. This is **not** a hazard detector, live monitoring system, or certified safety application. Live remote Meta calls were not executed during package generation.
+> **Current stage: Video ingestion, SAM object tracking, and deterministic reviewer-configured safety rules.** FastAPI upload/list/playback and a mobile-first Next.js frontend are included. This prototype reports potential rule matches, **not** certified danger, real-time monitoring, or safety compliance. Live remote Meta calls were not executed during package generation.
 
 VisionGuard aims to help safety reviewers analyze short, authorized workplace videos. The proposed workflow is: detect/track people and vehicles using SAM 3.1; interpret reviewer-specified monitoring rules with Muse Spark; evaluate temporal events deterministically; show evidence with timestamped, human-reviewable incident reports. It **must not** be used as a replacement for trained safety professionals or real-time emergency protection.
 
@@ -23,7 +23,7 @@ VisionGuard aims to help safety reviewers analyze short, authorized workplace vi
 | Day 1 | Model account, Muse ping, SAM video tracking outputs | **Starter code included; real API validation pending** |
 | Day 2 | Upload API, Next.js interface, video playback | **Implemented in `feature/video-ingestion`; validate locally** |
 | Days 3–4 | SAM tracks, fragment uncertainty + approximate box overlays | **Implemented in `feature/object-tracking`; live verification pending** |
-| Days 5–6 | Muse rule translation + deterministic event logic | Planned |
+| Days 5–6 | Muse rule translation + deterministic event logic | **Implemented in `feature/safety-rule-engine`; live validation pending** |
 | Days 7–8 | Evidence dashboard and incident timeline | Planned |
 | Days 9–10 | Benchmark, demo, submission | Planned (compress to fit official dates) |
 
@@ -208,3 +208,23 @@ npm run dev
 ```
 
 Open `http://localhost:3000`, upload a video, select it, and click Analyze. **Do not deploy these unauthenticated endpoints on a public host.** Automated tests are offline; real Meta SAM inference, playback alignment, privacy/retention and safety accuracy must be validated separately.
+
+
+## Milestone 4 — Reviewer-configured safety rules
+
+After a SAM tracking job completes, the viewer exposes a **Safety Intelligence** panel. Choose a rectangle (normalized coordinates), one of two supported rule types, and a required number of consecutive observed frames. **Evaluate tracked frames** makes a local deterministic API call with no model charges. The result returns potential rule matches, frame indices, approximate seek times, and tracking-gap uncertainty; it does **not** certify danger.
+
+Optionally describe your rule and click **Interpret with Muse (billable)**. Muse Spark 1.3 proposes a constrained JSON rule draft. Inspect it and click **Approve and apply draft**; you must still set the zone. Only explicit Muse and SAM calls use Meta credits.
+
+```bash
+python -m pytest backend/tests -q
+python -m backend.scripts.evaluate_fixture
+```
+
+API endpoints:
+- `POST /api/v1/rules/interpret` — optional billable Muse draft (manual approval required).
+- `POST /api/v1/tracking-jobs/{job_id}/evaluate` — offline deterministic rule evaluation against completed SAM report.
+
+Documentation: [architecture](docs/architecture/safety-rule-engine.md), [Muse drafting](docs/features/muse-safety-rule-drafting.md), [event semantics](docs/features/deterministic-hazard-events.md), [milestone](docs/milestones/04-safety-rule-engine.md).
+
+**Not yet validated:** live Muse/SAM compatibility, actual danger detection performance, frame-accurate timing, public deployment safety. The local API is not authenticated and must not be deployed publicly as-is.
