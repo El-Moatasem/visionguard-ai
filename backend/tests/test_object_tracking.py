@@ -126,3 +126,24 @@ def test_webm_rejected_before_spending(tmp_path, monkeypatch):
     assert uploaded.status_code == 201
     video_id = uploaded.json()["id"]
     assert client.post(f"/api/v1/videos/{video_id}/tracking-jobs").status_code == 415
+
+
+def test_short_tracking_gap_tolerance_retains_provisional_fragment():
+    report = build_tracking_report([summary(boxes=[box(1, 1), box(1, 3), box(1, 8)])])
+    assert report["fragment_gap_tolerance_frames"] == 2
+    assert report["gap_count"] == 2
+    assert report["tracks"][0]["fragment_count"] == 2
+    assert report["tracks"][0]["has_uncertain_identity_continuity"] is True
+    assert report["boxes"][0]["fragment_id"] == report["boxes"][1]["fragment_id"]
+    assert report["boxes"][1]["fragment_id"] != report["boxes"][2]["fragment_id"]
+    strict = build_tracking_report([summary(boxes=[box(1, 1), box(1, 3)])], max_missing_frames_for_fragment=0)
+    assert strict["tracks"][0]["fragment_count"] == 2
+
+
+def test_sam_media_dimensions_fallback_is_validated():
+    report = build_tracking_report([{"concept": "person", "outcome": "completed", "boxes": [],
+                                   "media": {"width": 1280, "height": 720, "fps": 25}}], {"available": False})
+    assert report["media_metadata"] == {"width": 1280.0, "height": 720.0, "fps": 25.0}
+    rejected = build_tracking_report([{"concept": "person", "outcome": "completed", "boxes": [],
+                                     "media": {"width": -1, "height": float("inf"), "fps": "unknown"}}])
+    assert rejected["media_metadata"] == {}

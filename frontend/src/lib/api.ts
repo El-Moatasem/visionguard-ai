@@ -75,6 +75,7 @@ export type TrackingReport = {
   gap_count: number;
   time_alignment: "approximate" | "unavailable";
   media_probe: { fps?: number | null; width?: number; height?: number; duration_seconds?: number };
+  media_metadata?: { fps?: number | null; width?: number; height?: number };
   tracks: TrackingTrack[];
   boxes: TrackingBox[];
   gaps: { track_id: string; after_frame: number; before_frame: number; missing_frames: number; identity_continuity: string }[];
@@ -95,18 +96,27 @@ export async function fetchTrackingResult(jobId: string): Promise<TrackingReport
 
 export type RuleType = "person_in_zone" | "person_and_forklift_in_zone";
 export type SafetyZone = {name: string; x_min: number; y_min: number; x_max: number; y_max: number};
-export type RuleSpec = {name: string; rule_type: RuleType; min_consecutive_frames: number; zone: SafetyZone};
-export type RuleDraft = {name: string; rule_type: RuleType; min_consecutive_frames: number; rationale: string};
+export type RuleSpec = {name: string; rule_type: RuleType; min_duration_seconds: number; max_observation_gap_frames: number; zone: SafetyZone};
+export type RuleDraft = {name: string; rule_type: RuleType | "unsupported"; min_duration_seconds: number; rationale: string};
 export type SafetyEvent = {
-  event_id: string; status: "potential_hazard"; start_frame: number; end_frame: number;
+  event_id: string; status: "potential_hazard" | "needs_review"; start_frame: number; end_frame: number;
   observed_frames: number; start_seconds_approx: number | null; end_seconds_approx: number | null;
-  actor_fragments: string[]; reason: string;
+  observed_span_seconds_approx: number; observed_coverage_ratio: number;
+  contains_missing_observations: boolean; identity_continuity: string;
+  actor_fragments: string[]; actor_tracks: string[]; reason: string;
+};
+export type SafetyReviewItem = Partial<SafetyEvent> & {
+  status: "needs_review"; start_frame: number; end_frame: number;
+  start_seconds_approx: number | null; end_seconds_approx: number | null;
+  reason: string; track_id?: string;
 };
 export type SafetyEvaluation = {
   tracking_job_id: string; rule: RuleSpec;
   outcome: "potential_hazard" | "needs_review" | "no_rule_match_observed";
-  event_count: number; events: SafetyEvent[]; uncertainty_count: number;
-  uncertainties: {track_id: string; after_frame: number; before_frame: number; missing_frames: number; reason: string}[];
+  event_count: number; events: SafetyEvent[]; review_count: number;
+  review_items: SafetyReviewItem[]; uncertainty_count: number;
+  has_unresolved_review_items: boolean;
+  uncertainties: SafetyReviewItem[];
   time_alignment: "approximate" | "unavailable"; method: string; disclaimer: string;
 };
 export async function interpretSafetyRule(description: string): Promise<RuleDraft> {

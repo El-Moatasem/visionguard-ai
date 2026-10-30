@@ -19,7 +19,7 @@ Phone capture / MP4 upload -> local video store
 
 ## Inputs and output contracts
 
-- `RuleSpec`: `name`, `rule_type`, `zone` (`x_min`, `y_min`, `x_max`, `y_max` between 0 and 1), and `min_consecutive_frames` (1–60).
+- `RuleSpec`: `name`, `rule_type`, `zone` (`x_min`, `y_min`, `x_max`, `y_max` between 0 and 1), and `min_duration_seconds` (0–30s) and bounded `max_observation_gap_frames` (0–30).
 - Supported types:
   - `person_in_zone`: observed person **bounding-box center** inside region for N consecutive frames.
   - `person_and_forklift_in_zone`: **same person fragment and same forklift fragment** observed together inside region for N consecutive frames.

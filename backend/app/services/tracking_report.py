@@ -28,13 +28,16 @@ def _valid_box(box: dict[str, Any]) -> dict[str, float] | None:
     return values
 
 
-def build_tracking_report(summaries: list[dict[str, Any]], media_probe: dict[str, Any] | None = None) -> dict[str, Any]:
+def build_tracking_report(summaries: list[dict[str, Any]], media_probe: dict[str, Any] | None = None,
+                          max_missing_frames_for_fragment: int = 2) -> dict[str, Any]:
     """Build compact overlay observations and conservative track fragments.
 
     Report can be constructed from saved, mocked SAM summaries without calling
     remote models. Frame index is authoritative; seconds are *approximate* when
     derived from container FPS. Never interpolate boxes across missing frames.
     """
+    if not isinstance(max_missing_frames_for_fragment, int) or not 0 <= max_missing_frames_for_fragment <= 30:
+        raise TrackingReportError("max_missing_frames_for_fragment must be between 0 and 30")
     if not summaries:
         raise TrackingReportError("No completed SAM summaries available")
     probe = media_probe or {}
@@ -74,34 +77,60 @@ def build_tracking_report(summaries: list[dict[str, Any]], media_probe: dict[str
     for track_id, frames in sorted(grouped.items()):
         ordered = sorted(frames)
         parts = []
+        track_has_gap = False
         start = previous = ordered[0]
         part_no = 0
         for frame in ordered[1:]:
             if frame > previous + 1:
-                parts.append({"fragment_id": f"{track_id}#{part_no}", "start_frame": start, "end_frame": previous})
-                for idx in range(start, previous + 1):
-                    fragments[(track_id, idx)] = part_no
+                track_has_gap = True
+                missing = frame - previous - 1
                 gaps.append({"track_id": track_id, "after_frame": previous, "before_frame": frame,
-                             "missing_frames": frame - previous - 1,
+                             "missing_frames": missing,
                              "reason": "observation_gap",
                              "identity_continuity": "unverified"})
-                part_no += 1
-                start = frame
+                if missing > max_missing_frames_for_fragment:
+                    parts.append({"fragment_id": f"{track_id}#{part_no}", "start_frame": start, "end_frame": previous})
+                    for idx in ordered:
+                        if start <= idx <= previous:
+                            fragments[(track_id, idx)] = part_no
+                    part_no += 1
+                    start = frame
             previous = frame
         parts.append({"fragment_id": f"{track_id}#{part_no}", "start_frame": start, "end_frame": previous})
-        for idx in range(start, previous + 1):
-            fragments[(track_id, idx)] = part_no
+        for idx in ordered:
+            if start <= idx <= previous:
+                fragments[(track_id, idx)] = part_no
         tracks.append({"track_id": track_id, "concept": track_id.split(":", 1)[0],
                        "observed_frames": len(ordered), "first_frame": ordered[0],
                        "last_frame": ordered[-1], "fragment_count": len(parts),
-                       "has_uncertain_identity_continuity": len(parts) > 1,
+                       "has_uncertain_identity_continuity": track_has_gap,
                        "fragments": parts})
 
     boxes = sorted(observations.values(), key=lambda obj: (obj["frame"], obj["track_id"]))
     for box in boxes:
         box["fragment_id"] = f"{box['track_id']}#{fragments[(box['track_id'], box['frame'])]}"
+    # Best-effort validated SAM media metadata fallback when ffprobe is unavailable.
+    # Never invent dimensions or frame rate. Some API versions omit these fields.
+    media_metadata: dict[str, float] = {}
+    for summary in summaries:
+        media = summary.get("media") or {}
+        if not isinstance(media, dict):
+            continue
+        for candidate in (media, media.get("video"), media.get("metadata")):
+            if not isinstance(candidate, dict):
+                continue
+            for field, aliases in {"width": ("width", "video_width"),
+                                   "height": ("height", "video_height"),
+                                   "fps": ("fps", "frame_rate")}.items():
+                if field in media_metadata:
+                    continue
+                for alias in aliases:
+                    value = candidate.get(alias)
+                    if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) and value > 0:
+                        media_metadata[field] = float(value)
+                        break
     return {
-        "schema_version": 1,
+        "schema_version": 1, "media_metadata": media_metadata,
         "models": ["sam-3.1"],
         "concepts_requested": list(counts),
         "media_probe": probe,
@@ -112,6 +141,7 @@ def build_tracking_report(summaries: list[dict[str, Any]], media_probe: dict[str
         "gap_count": len(gaps),
         "tracks": tracks,
         "gaps": gaps,
+        "fragment_gap_tolerance_frames": max_missing_frames_for_fragment,
         "boxes": boxes,
         "hazard_detection_implemented": False,
         "identity_policy": "Do not interpolate missing frames, auto-reidentify across gaps, or treat SAM IDs as continuous after full occlusion.",
