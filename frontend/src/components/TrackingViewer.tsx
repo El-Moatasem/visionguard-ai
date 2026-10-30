@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import SafetyRulePanel from "@/components/SafetyRulePanel";
 import {
   fetchTrackingJob, fetchTrackingJobs, fetchTrackingResult, playbackUrl,
   startTracking, type TrackingJob, type TrackingReport, type VideoItem,
@@ -11,6 +12,7 @@ const PALETTE: Record<string, string> = { person: "#45d9b7", forklift: "#f5bb77"
 export default function TrackingViewer({ video }: { video: VideoItem }) {
   const element = useRef<HTMLVideoElement>(null);
   const [seconds, setSeconds] = useState(0);
+  const [safetyZone, setSafetyZone] = useState<{x_min:number;y_min:number;x_max:number;y_max:number}>({x_min:.2,y_min:.2,x_max:.8,y_max:.8});
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [job, setJob] = useState<TrackingJob | null>(null);
   const [report, setReport] = useState<TrackingReport | null>(null);
@@ -77,6 +79,10 @@ export default function TrackingViewer({ video }: { video: VideoItem }) {
         onLoadedMetadata={(e) => setDimensions({ width: e.currentTarget.videoWidth, height: e.currentTarget.videoHeight })}/>
       {showOverlay && <svg className="tracking-overlay" viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
         preserveAspectRatio="xMidYMid meet" aria-label="Approximate SAM tracking boxes">
+        {report && <rect x={safetyZone.x_min*dimensions.width} y={safetyZone.y_min*dimensions.height}
+          width={(safetyZone.x_max-safetyZone.x_min)*dimensions.width}
+          height={(safetyZone.y_max-safetyZone.y_min)*dimensions.height}
+          fill="#e8b85a" fillOpacity="0.07" stroke="#e8b85a" strokeDasharray="12 8" strokeWidth={3} />}
         {overlays.map((item) => <g key={`${item.track_id}:${item.frame}`}>
           <rect x={item.box.left} y={item.box.top} width={item.box.right - item.box.left}
             height={item.box.bottom - item.box.top} fill="none" stroke={PALETTE[item.concept] ?? "white"}
@@ -89,7 +95,7 @@ export default function TrackingViewer({ video }: { video: VideoItem }) {
     <div className="tracking-tools">
       <div className="tracking-tools-header"><div><span className="eyebrow">03 / VISUAL TRACKING</span><h3>Meta SAM 3.1 analysis</h3></div>
       <span className={`tracking-state ${job?.status === "completed" ? "is-ok" : ""}`}>{job?.status ?? "Not analyzed"}</span></div>
-      <p className="helper">Analyze this clip for <strong>people</strong> and <strong>forklifts</strong>. This sends authorized footage to Meta and consumes API credits. Not real-time monitoring or danger detection.</p>
+      <p className="helper">Analyze this clip for <strong>people</strong> and <strong>forklifts</strong>. This sends authorized footage to Meta and consumes API credits. Not real-time monitoring or certified danger detection.</p>
       <button type="button" className="button button-primary" disabled={busy || !video.sam_compatible_container}
         onClick={() => void analyze()}>{busy ? "Analyzing…" : job?.status === "completed" ? "Run fresh analysis (billable)" : "Analyze with SAM (billable)"}</button>
       {!video.sam_compatible_container && <p className="error">WebM is not supported by SAM. Convert to H.264 MP4 first.</p>}
@@ -97,7 +103,7 @@ export default function TrackingViewer({ video }: { video: VideoItem }) {
       {error && <p className="error" role="alert">{error}</p>}
       {report && <>
         <div className="tracking-metrics"><div><strong>{report.track_count}</strong><small>Tracks</small></div><div><strong>{report.box_count}</strong><small>Observed boxes</small></div><div><strong>{report.gap_count}</strong><small>Occlusion / missing-frame gaps</small></div></div>
-        <p className="helper">Frame-overlay timing is {report.time_alignment}; it assumes constant FPS and is NOT frame-accurate evidence. SAM IDs are not trusted across missing-frame gaps. This branch does not classify danger.</p>
+        <p className="helper">Frame-overlay timing is {report.time_alignment}; it assumes constant FPS and is NOT frame-accurate evidence. SAM IDs are not trusted across missing-frame gaps. Rule-based potential hazard screening is available below after tracking completes.</p>
         <div className="tracking-track-list">
         {report.tracks.slice(0, 15).map((track) => <div className="tracking-track" key={track.track_id}>
           <strong>{track.track_id}</strong><span>{track.observed_frames} observed frames · {track.fragment_count} fragment(s)</span>
@@ -105,6 +111,8 @@ export default function TrackingViewer({ video }: { video: VideoItem }) {
         </div>)}
         {report.tracks.length === 0 && <p className="helper">No boxes matched the requested concepts. This can be a valid SAM result.</p>}
         </div>
+        {job?.status === "completed" && <SafetyRulePanel key={job.id} jobId={job.id} onZoneChange={setSafetyZone}
+          onSeek={(time) => {if(element.current){element.current.currentTime=time;setSeconds(time);}}} />}
       </>}
     </div>
   </div>;
