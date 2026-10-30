@@ -5,7 +5,7 @@ from backend.app.services.tracking_jobs import TrackingError, get_result
 from backend.app.services.safety_engine import SafetyEvaluationError, evaluate_tracking
 from backend.app.services.safety_rules import EvaluateRequest, InterpretRequest
 from backend.app.services.muse_rules import RuleInterpretationError, interpret_rule
-from backend.app.config import api_configured
+from backend.app.config import api_configured, MUSE_MODEL
 
 router = APIRouter(prefix="/api/v1", tags=["safety rules"])
 
@@ -29,7 +29,7 @@ async def interpret(request: InterpretRequest):
         raise HTTPException(status_code=503, detail="MODEL_API_KEY is required for billable Muse drafting")
     try:
         draft = await interpret_rule(request.description)
-        return {"draft": draft.model_dump(), "model": "muse-spark-1.3", "requires_human_approval": True,
+        return {"draft": draft.model_dump(), "model": MUSE_MODEL, "requires_human_approval": True,
                 "note": "Muse only drafts rule parameters. The deterministic evaluator never uses generated judgments."}
     except (RuleInterpretationError, RuntimeError):
         raise HTTPException(status_code=502, detail="Could not validate Muse's proposed rule; configure it manually")
