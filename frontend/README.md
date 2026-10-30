@@ -32,3 +32,8 @@ transcode them to H.264 MP4 in a later processing stage.
 npm run typecheck
 npm run build
 ```
+
+
+## Milestone 4 — Safety rule panel
+
+After a successful SAM tracking job, choose a zone preset or adjust normalized coordinates. Select the manual zone-entry or person/forklift co-presence rule and evaluate observed frames without a new model call. The optional Muse Spark rule interpretation explicitly consumes API credits and requires reviewer approval before applying a rule. Detected events are *potential hazard rule matches*, not verified accidents. Approximate frame-to-player synchronization and occlusion gaps remain visible limitations. See `../docs/architecture/safety-rule-engine.md`.
