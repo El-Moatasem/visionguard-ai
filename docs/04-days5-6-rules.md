@@ -13,7 +13,7 @@ Allowed schema (illustrative, not yet implemented):
   "subject_class": "person",
   "context_class": "forklift",
   "zone_id": "forklift-lane-1",
-  "min_consecutive_frames": 3
+  "min_duration_seconds": 0.5
 }
 ```
 

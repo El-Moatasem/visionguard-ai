@@ -1,7 +1,4 @@
-"""Constrained safety policy model. Zones are reviewer-defined; Muse never controls geometry.
-
-A match is an observed rule condition, NOT a confirmed physical danger or safety verdict.
-"""
+"""Constrained, reviewer-approved safety policies. No automatic danger verdicts."""
 from __future__ import annotations
 
 from typing import Literal
@@ -30,7 +27,9 @@ class RuleSpec(StrictModel):
     name: str = Field(min_length=1, max_length=80)
     rule_type: Literal["person_in_zone", "person_and_forklift_in_zone"]
     zone: NormalizedZone
-    min_consecutive_frames: int = Field(default=3, ge=1, le=60)
+    min_duration_seconds: float = Field(default=0.5, gt=0, le=30, allow_inf_nan=False)
+    # Missing source frame indices allowed for a *provisional* association, never proof of visibility.
+    max_observation_gap_frames: int = Field(default=2, ge=0, le=30)
 
 
 class EvaluateRequest(StrictModel):
@@ -43,12 +42,12 @@ class InterpretRequest(StrictModel):
 
 class RuleDraft(StrictModel):
     name: str = Field(min_length=1, max_length=80)
-    rule_type: Literal["person_in_zone", "person_and_forklift_in_zone"]
-    min_consecutive_frames: int = Field(ge=1, le=60)
-    rationale: str = Field(max_length=300)
+    rule_type: Literal["person_in_zone", "person_and_forklift_in_zone", "unsupported"]
+    min_duration_seconds: float = Field(gt=0, le=30, allow_inf_nan=False)
+    rationale: str = Field(min_length=1, max_length=300)
 
 
-# Constrained model output; no arbitrary Python, executable DSL, or zone positions.
+# Exact schema fields intentionally required for Meta's constrained JSON output.
 DRAFT_JSON_SCHEMA = {
     "type": "json_schema",
     "json_schema": {
@@ -58,11 +57,11 @@ DRAFT_JSON_SCHEMA = {
             "type": "object",
             "properties": {
                 "name": {"type": "string"},
-                "rule_type": {"type": "string", "enum": ["person_in_zone", "person_and_forklift_in_zone"]},
-                "min_consecutive_frames": {"type": "integer"},
+                "rule_type": {"type": "string", "enum": ["person_in_zone", "person_and_forklift_in_zone", "unsupported"]},
+                "min_duration_seconds": {"type": "number"},
                 "rationale": {"type": "string"},
             },
-            "required": ["name", "rule_type", "min_consecutive_frames", "rationale"],
+            "required": ["name", "rule_type", "min_duration_seconds", "rationale"],
             "additionalProperties": False,
         },
     },
