@@ -15,7 +15,7 @@ client = TestClient(app)
 
 
 def test_health():
-    assert client.get("/health").json() == {"status": "ok", "stage": "object-tracking"}
+    assert client.get("/health").json() == {"status": "ok", "stage": "safety-rule-engine"}
 
 
 def test_status_never_returns_key(monkeypatch):

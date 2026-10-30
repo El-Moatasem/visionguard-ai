@@ -1,0 +1,22 @@
+{
+  "description": "Synthetic bounding-box observations for deterministic offline verification; not a real factory video or a SAM inference result.",
+  "rule": {
+    "name": "Forklift and pedestrian in operating aisle",
+    "rule_type": "person_and_forklift_in_zone",
+    "min_consecutive_frames": 2,
+    "zone": {"name": "Aisle", "x_min": 0.2, "y_min": 0.2, "x_max": 0.8, "y_max": 0.8}
+  },
+  "report": {
+    "schema_version": 1,
+    "media_probe": {"width": 100, "height": 100, "fps": 10},
+    "boxes": [
+      {"concept": "person", "track_id": "person:p1", "fragment_id": "person:p1#0", "frame": 0, "box": {"left": 40, "top": 40, "right": 50, "bottom": 60}},
+      {"concept": "person", "track_id": "person:p1", "fragment_id": "person:p1#0", "frame": 1, "box": {"left": 40, "top": 40, "right": 50, "bottom": 60}},
+      {"concept": "person", "track_id": "person:p1", "fragment_id": "person:p1#0", "frame": 2, "box": {"left": 40, "top": 40, "right": 50, "bottom": 60}},
+      {"concept": "forklift", "track_id": "forklift:f1", "fragment_id": "forklift:f1#0", "frame": 1, "box": {"left": 48, "top": 48, "right": 58, "bottom": 60}},
+      {"concept": "forklift", "track_id": "forklift:f1", "fragment_id": "forklift:f1#0", "frame": 2, "box": {"left": 48, "top": 48, "right": 58, "bottom": 60}}
+    ],
+    "gaps": []
+  },
+  "expected": {"event_count": 1, "start_frame": 1, "end_frame": 2}
+}
