@@ -2,7 +2,8 @@
 
 import { ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
 import CameraCapture from "@/components/CameraCapture";
-import { fetchVideos, playbackUrl, uploadVideo, type VideoItem } from "@/lib/api";
+import TrackingViewer from "@/components/TrackingViewer";
+import { fetchVideos, uploadVideo, type VideoItem } from "@/lib/api";
 
 const MAX_BYTES = 25 * 1024 * 1024;
 
@@ -51,16 +52,16 @@ export default function Home() {
       setChosen(null);
       await reload();
       setSelected(created);
-      setMessage(`Uploaded ${created.name}. This stage stores video only; safety analysis is not implemented yet.`);
+      setMessage(`Uploaded ${created.name}. Select it for optional SAM tracking. Danger detection is a later milestone.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
     } finally { setBusy(false); }
   }
 
   return <main className="app-shell">
-    <header className="topbar"><div className="brand"><span className="brand-mark">◉</span><strong>VISIONGUARD <span>AI</span></strong></div><span className="top-status"><span className="status-dot" /> Hackathon MVP · Video ingestion</span></header>
+    <header className="topbar"><div className="brand"><span className="brand-mark">◉</span><strong>VISIONGUARD <span>AI</span></strong></div><span className="top-status"><span className="status-dot" /> Hackathon MVP · Object tracking</span></header>
     <div className="container">
-      <section className="hero"><div className="eyebrow">VISUAL SAFETY INTELLIGENCE • FOUNDATION</div><h1>Capture the scene.<br /><span>Understand what happened.</span></h1><p>Upload or record authorized workplace footage. This milestone validates mobile capture, secure-size bounded ingestion and playback. Automated safety detections are coming in later branches.</p></section>
+      <section className="hero"><div className="eyebrow">VISUAL SAFETY INTELLIGENCE • FOUNDATION</div><h1>Capture the scene.<br /><span>Understand what happened.</span></h1><p>Upload or record authorized workplace footage. Capture and upload short authorized clips, then optionally analyze people and forklifts with hosted SAM 3.1. Hazard detection follows in a later milestone.</p></section>
       <div className="workspace">
         <div className="column">
           <section className="panel"><div className="section-heading"><div><span className="eyebrow">01 / INGEST</span><h2>Upload a video</h2></div><span className="pill">MP4 · MOV · WebM</span></div>
@@ -75,7 +76,7 @@ export default function Home() {
           <CameraCapture onCaptured={chooseFile} />
         </div>
         <section className="panel library-panel"><div className="section-heading"><div><span className="eyebrow">02 / REVIEW</span><h2>Video workspace</h2></div><button className="small-link" type="button" onClick={() => void reload()}>Refresh</button></div>
-          <div className="player-wrap">{selected ? <video key={selected.id} src={playbackUrl(selected)} controls playsInline preload="metadata" className="player" /> : <div className="empty-player"><span>▶</span><p>No videos uploaded yet</p></div>}</div>
+          <div className="player-wrap">{selected ? <TrackingViewer key={selected.id} video={selected} /> : <div className="empty-player"><span>▶</span><p>No videos uploaded yet</p></div>}</div>
           {selected && <div className="video-detail"><strong>{selected.name}</strong><span>{(selected.size_bytes / 1024 / 1024).toFixed(1)} MiB · {selected.media_type}</span><span className={selected.sam_compatible_container ? "tag tag-green" : "tag tag-amber"}>{selected.sam_compatible_container ? "MP4/MOV container" : "WebM • convert before SAM"}</span></div>}
           <div className="library-heading"><span>RECENT UPLOADS</span><span>{videos.length} item(s)</span></div>
           <div className="video-list">{videos.length ? videos.map(v => <button type="button" key={v.id} className={`video-row ${selected?.id === v.id ? "is-selected" : ""}`} onClick={() => setSelected(v)}><span className="video-thumb">▶</span><span className="video-info"><strong>{v.name}</strong><small>{new Date(v.created_at).toLocaleString()} · {(v.size_bytes / 1024 / 1024).toFixed(1)} MiB</small></span></button>) : <p className="helper">Uploaded videos will appear here.</p>}</div>
