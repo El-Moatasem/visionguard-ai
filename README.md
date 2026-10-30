@@ -228,3 +228,17 @@ API endpoints:
 Documentation: [architecture](docs/architecture/safety-rule-engine.md), [Muse drafting](docs/features/muse-safety-rule-drafting.md), [event semantics](docs/features/deterministic-hazard-events.md), [milestone](docs/milestones/04-safety-rule-engine.md).
 
 **Not yet validated:** live Muse/SAM compatibility, actual danger detection performance, frame-accurate timing, public deployment safety. The local API is not authenticated and must not be deployed publicly as-is.
+
+
+## Temporal evaluation reliability patch (`fix/temporal-evaluation`)
+
+Safety policies now use `min_duration_seconds` (default 0.5) and `max_observation_gap_frames` (default 2).
+`events` contain directly observed, contiguous rule matches, while `review_items` contain bounded-gap candidates and relevant near-zone gaps; **no missing frames are treated as observed**.
+The player supports drawing an operating zone directly over the video. Muse rule drafts can explicitly respond `unsupported` for speed, distance, PPE and other unimplemented capabilities.
+Tracking reports may use SAM media dimensions/FPS when those values are genuinely present and `ffprobe` is unavailable. Duration evaluation fails closed without FPS.
+
+Run `python -m pytest backend/tests -q` and `python -m backend.scripts.evaluate_fixture` for offline checks.
+After obtaining real, licensed SAM output, inspect its frame stride with `python -m backend.scripts.inspect_sam_frames outputs/day1/person/summary.json`.
+See [`docs/features/temporal-evaluation.md`](docs/features/temporal-evaluation.md) and [`docs/architecture/temporal-evaluation-v2.md`](docs/architecture/temporal-evaluation-v2.md).
+
+**Compatibility:** `min_consecutive_frames` has been replaced in requests and Muse draft output by `min_duration_seconds`, and results now have separate `review_items`. This is not yet a deployed, calibrated, or validated safety monitor.
