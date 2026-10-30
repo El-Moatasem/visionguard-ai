@@ -3,12 +3,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.api.videos import router as videos_router
+from backend.app.api.tracking import router as tracking_router
 from backend.app.config import MUSE_MODEL, SAM_MODEL, api_configured
 
 app = FastAPI(
     title="VisionGuard AI",
-    description="Meta-powered visual safety intelligence — video ingestion MVP",
-    version="0.2.0",
+    description="Meta-powered visual safety intelligence — video ingestion and object tracking MVP",
+    version="0.3.0",
 )
 
 # Local frontend uses a Next.js same-origin rewrite; keep CORS restricted.
@@ -19,11 +20,12 @@ app.add_middleware(
     allow_headers=["Content-Type"],
 )
 app.include_router(videos_router)
+app.include_router(tracking_router)
 
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "stage": "video-ingestion"}
+    return {"status": "ok", "stage": "object-tracking"}
 
 
 @app.get("/api/v1/meta/status")
