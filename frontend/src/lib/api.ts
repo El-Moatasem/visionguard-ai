@@ -39,3 +39,56 @@ export async function fetchVideos(): Promise<VideoItem[]> {
 export function playbackUrl(item: VideoItem): string {
   return `${API}/videos/${encodeURIComponent(item.id)}/file`;
 }
+
+
+export type TrackingJob = {
+  id: string;
+  video_id: string;
+  status: "queued" | "running" | "completed" | "failed" | "interrupted";
+  model: string;
+  concepts: string[];
+  created_at: string;
+  message: string;
+  result_url: string;
+  track_count?: number;
+  gap_count?: number;
+};
+export type TrackingBox = {
+  track_id: string;
+  fragment_id: string;
+  concept: string;
+  frame: number;
+  box: { left: number; top: number; right: number; bottom: number };
+};
+export type TrackingTrack = {
+  track_id: string;
+  concept: string;
+  observed_frames: number;
+  fragment_count: number;
+  has_uncertain_identity_continuity: boolean;
+  fragments: { fragment_id: string; start_frame: number; end_frame: number }[];
+};
+export type TrackingReport = {
+  schema_version: number;
+  box_count: number;
+  track_count: number;
+  gap_count: number;
+  time_alignment: "approximate" | "unavailable";
+  media_probe: { fps?: number | null; width?: number; height?: number; duration_seconds?: number };
+  tracks: TrackingTrack[];
+  boxes: TrackingBox[];
+  gaps: { track_id: string; after_frame: number; before_frame: number; missing_frames: number; identity_continuity: string }[];
+};
+export async function startTracking(videoId: string): Promise<TrackingJob> {
+  return readResponse<TrackingJob>(await fetch(`${API}/videos/${encodeURIComponent(videoId)}/tracking-jobs`, {method: "POST"}));
+}
+export async function fetchTrackingJobs(videoId: string): Promise<TrackingJob[]> {
+  const data = await readResponse<{items: TrackingJob[]}>(await fetch(`${API}/videos/${encodeURIComponent(videoId)}/tracking-jobs`, {cache: "no-store"}));
+  return data.items;
+}
+export async function fetchTrackingJob(jobId: string): Promise<TrackingJob> {
+  return readResponse<TrackingJob>(await fetch(`${API}/tracking-jobs/${encodeURIComponent(jobId)}`, {cache: "no-store"}));
+}
+export async function fetchTrackingResult(jobId: string): Promise<TrackingReport> {
+  return readResponse<TrackingReport>(await fetch(`${API}/tracking-jobs/${encodeURIComponent(jobId)}/result`, {cache: "no-store"}));
+}
