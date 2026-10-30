@@ -92,3 +92,31 @@ export async function fetchTrackingJob(jobId: string): Promise<TrackingJob> {
 export async function fetchTrackingResult(jobId: string): Promise<TrackingReport> {
   return readResponse<TrackingReport>(await fetch(`${API}/tracking-jobs/${encodeURIComponent(jobId)}/result`, {cache: "no-store"}));
 }
+
+export type RuleType = "person_in_zone" | "person_and_forklift_in_zone";
+export type SafetyZone = {name: string; x_min: number; y_min: number; x_max: number; y_max: number};
+export type RuleSpec = {name: string; rule_type: RuleType; min_consecutive_frames: number; zone: SafetyZone};
+export type RuleDraft = {name: string; rule_type: RuleType; min_consecutive_frames: number; rationale: string};
+export type SafetyEvent = {
+  event_id: string; status: "potential_hazard"; start_frame: number; end_frame: number;
+  observed_frames: number; start_seconds_approx: number | null; end_seconds_approx: number | null;
+  actor_fragments: string[]; reason: string;
+};
+export type SafetyEvaluation = {
+  tracking_job_id: string; rule: RuleSpec;
+  outcome: "potential_hazard" | "needs_review" | "no_rule_match_observed";
+  event_count: number; events: SafetyEvent[]; uncertainty_count: number;
+  uncertainties: {track_id: string; after_frame: number; before_frame: number; missing_frames: number; reason: string}[];
+  time_alignment: "approximate" | "unavailable"; method: string; disclaimer: string;
+};
+export async function interpretSafetyRule(description: string): Promise<RuleDraft> {
+  const result = await readResponse<{draft: RuleDraft}>(await fetch(`${API}/rules/interpret`, {
+    method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({description}),
+  }));
+  return result.draft;
+}
+export async function evaluateSafetyRule(jobId: string, rule: RuleSpec): Promise<SafetyEvaluation> {
+  return readResponse<SafetyEvaluation>(await fetch(`${API}/tracking-jobs/${encodeURIComponent(jobId)}/evaluate`, {
+    method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({rule}),
+  }));
+}

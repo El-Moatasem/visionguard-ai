@@ -52,16 +52,16 @@ export default function Home() {
       setChosen(null);
       await reload();
       setSelected(created);
-      setMessage(`Uploaded ${created.name}. Select it for optional SAM tracking. Danger detection is a later milestone.`);
+      setMessage(`Uploaded ${created.name}. Select it for optional SAM tracking. Use tracking and reviewer-configured rules to inspect potential hazards.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
     } finally { setBusy(false); }
   }
 
   return <main className="app-shell">
-    <header className="topbar"><div className="brand"><span className="brand-mark">◉</span><strong>VISIONGUARD <span>AI</span></strong></div><span className="top-status"><span className="status-dot" /> Hackathon MVP · Object tracking</span></header>
+    <header className="topbar"><div className="brand"><span className="brand-mark">◉</span><strong>VISIONGUARD <span>AI</span></strong></div><span className="top-status"><span className="status-dot" /> Hackathon MVP · Safety rule engine</span></header>
     <div className="container">
-      <section className="hero"><div className="eyebrow">VISUAL SAFETY INTELLIGENCE • FOUNDATION</div><h1>Capture the scene.<br /><span>Understand what happened.</span></h1><p>Upload or record authorized workplace footage. Capture and upload short authorized clips, then optionally analyze people and forklifts with hosted SAM 3.1. Hazard detection follows in a later milestone.</p></section>
+      <section className="hero"><div className="eyebrow">VISUAL SAFETY INTELLIGENCE • RULE ENGINE</div><h1>Capture the scene.<br /><span>Understand what happened.</span></h1><p>Upload or record authorized workplace footage. Capture and upload short authorized clips, then optionally analyze people and forklifts with hosted SAM 3.1. Then configure a review zone and evaluate potential hazard conditions without relying on generated claims.</p></section>
       <div className="workspace">
         <div className="column">
           <section className="panel"><div className="section-heading"><div><span className="eyebrow">01 / INGEST</span><h2>Upload a video</h2></div><span className="pill">MP4 · MOV · WebM</span></div>
