@@ -127,6 +127,14 @@ def test_evidence_inputs_are_strict_and_missing_ids(monkeypatch, tmp_path):
 
 def test_replay_only_mode_hides_live_and_persistent_routes():
     env = dict(os.environ, VISIONGUARD_REPLAY_ONLY="1")
-    code = "from backend.app.main import app; a={r.path for r in app.routes}; assert '/api/v1/replay/scenarios' in a; assert '/api/v1/videos' not in a; assert '/api/v1/evidence-reports' not in a; assert '/api/v1/rules/interpret' not in a; assert '/api/v1/meta/status' in a"
+    code = (
+    "from backend.app.main import app; "
+    "a = {r.path for r in app.routes if hasattr(r, 'path')}; "
+    "assert '/api/v1/replay/scenarios' in a; "
+    "assert '/api/v1/videos' not in a; "
+    "assert '/api/v1/evidence-reports' not in a; "
+    "assert '/api/v1/rules/interpret' not in a; "
+    "assert '/api/v1/meta/status' in a"
+    )
     proc = subprocess.run([sys.executable,"-c",code],capture_output=True,text=True,env=env,timeout=15)
     assert proc.returncode == 0, proc.stderr
