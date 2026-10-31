@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
 import CameraCapture from "@/components/CameraCapture";
 import TrackingViewer from "@/components/TrackingViewer";
@@ -58,9 +59,16 @@ export default function Home() {
     } finally { setBusy(false); }
   }
 
+  if (process.env.NEXT_PUBLIC_REPLAY_ONLY === "1") {
+    return <main className="app-shell"><div className="container"><section className="hero"><span className="eyebrow">VISIONGUARD AI · PUBLIC SYNTHETIC REPLAY</span>
+      <h1>Inspect the evidence.<br/><span>Don't invent what isn't observed.</span></h1>
+      <p>This public deployment contains only synthetic hand-authored tracking fixtures. Upload, paid inference, and local review persistence are disabled.</p>
+      <Link href="/replay" className="button button-primary evidence-link">Open read-only replay</Link></section></div></main>;
+  }
   return <main className="app-shell">
-    <header className="topbar"><div className="brand"><span className="brand-mark">◉</span><strong>VISIONGUARD <span>AI</span></strong></div><span className="top-status"><span className="status-dot" /> Hackathon MVP · Safety rule engine</span></header>
+    <header className="topbar"><div className="brand"><span className="brand-mark">◉</span><strong>VISIONGUARD <span>AI</span></strong></div><span className="top-status"><span className="status-dot" /> Hackathon MVP · Evidence and review</span></header>
     <div className="container">
+      <div className="replay-navigation"><Link href="/replay" className="button button-secondary evidence-link">Explore synthetic replay →</Link><span>Offline rule evaluation, no model credits</span></div>
       <section className="hero"><div className="eyebrow">VISUAL SAFETY INTELLIGENCE • RULE ENGINE</div><h1>Capture the scene.<br /><span>Understand what happened.</span></h1><p>Upload or record authorized workplace footage. Capture and upload short authorized clips, then optionally analyze people and forklifts with hosted SAM 3.1. Then configure a review zone and evaluate potential hazard conditions without relying on generated claims.</p></section>
       <div className="workspace">
         <div className="column">
