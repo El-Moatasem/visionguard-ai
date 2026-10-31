@@ -1,0 +1,641 @@
+{
+  "id": "warehouse-copresence",
+  "title": "Worker\u2013forklift shared zone",
+  "description": "A worker and forklift occupy one monitored operating zone; evidence should be reviewable.",
+  "provenance": "synthetic_fixture",
+  "live_inference": false,
+  "video_asset_included": false,
+  "camera_feed": false,
+  "rights": "Generated numeric geometry and labels only; no third-party video or real SAM output.",
+  "default_rule": {
+    "name": "Worker and forklift in operating zone",
+    "rule_type": "person_and_forklift_in_zone",
+    "min_duration_seconds": 0.5,
+    "max_observation_gap_frames": 2,
+    "zone": {
+      "name": "Forklift operating zone",
+      "x_min": 0.2,
+      "y_min": 0.25,
+      "x_max": 0.8,
+      "y_max": 0.85
+    }
+  },
+  "tracking_report": {
+    "schema_version": 1,
+    "box_count": 50,
+    "track_count": 2,
+    "gap_count": 0,
+    "media_probe": {
+      "width": 640,
+      "height": 360,
+      "fps": 10,
+      "duration_seconds": 3
+    },
+    "time_alignment": "approximate",
+    "boxes": [
+      {
+        "concept": "forklift",
+        "frame": 0,
+        "track_id": "forklift:synthetic-1",
+        "fragment_id": "forklift:synthetic-1#0",
+        "box": {
+          "left": 268.8,
+          "top": 162.0,
+          "right": 422.40000000000003,
+          "bottom": 284.40000000000003
+        }
+      },
+      {
+        "concept": "person",
+        "frame": 0,
+        "track_id": "person:synthetic-1",
+        "fragment_id": "person:synthetic-1#0",
+        "box": {
+          "left": 28.799999999999997,
+          "top": 79.2,
+          "right": 86.4,
+          "bottom": 259.2
+        }
+      },
+      {
+        "concept": "forklift",
+        "frame": 1,
+        "track_id": "forklift:synthetic-1",
+        "fragment_id": "forklift:synthetic-1#0",
+        "box": {
+          "left": 268.8,
+          "top": 162.0,
+          "right": 422.40000000000003,
+          "bottom": 284.40000000000003
+        }
+      },
+      {
+        "concept": "person",
+        "frame": 1,
+        "track_id": "person:synthetic-1",
+        "fragment_id": "person:synthetic-1#0",
+        "box": {
+          "left": 28.799999999999997,
+          "top": 79.2,
+          "right": 86.4,
+          "bottom": 259.2
+        }
+      },
+      {
+        "concept": "forklift",
+        "frame": 2,
+        "track_id": "forklift:synthetic-1",
+        "fragment_id": "forklift:synthetic-1#0",
+        "box": {
+          "left": 268.8,
+          "top": 162.0,
+          "right": 422.40000000000003,
+          "bottom": 284.40000000000003
+        }
+      },
+      {
+        "concept": "person",
+        "frame": 2,
+        "track_id": "person:synthetic-1",
+        "fragment_id": "person:synthetic-1#0",
+        "box": {
+          "left": 28.799999999999997,
+          "top": 79.2,
+          "right": 86.4,
+          "bottom": 259.2
+        }
+      },
+      {
+        "concept": "forklift",
+        "frame": 3,
+        "track_id": "forklift:synthetic-1",
+        "fragment_id": "forklift:synthetic-1#0",
+        "box": {
+          "left": 268.8,
+          "top": 162.0,
+          "right": 422.40000000000003,
+          "bottom": 284.40000000000003
+        }
+      },
+      {
+        "concept": "person",
+        "frame": 3,
+        "track_id": "person:synthetic-1",
+        "fragment_id": "person:synthetic-1#0",
+        "box": {
+          "left": 28.799999999999997,
+          "top": 79.2,
+          "right": 86.4,
+          "bottom": 259.2
+        }
+      },
+      {
+        "concept": "forklift",
+        "frame": 4,
+        "track_id": "forklift:synthetic-1",
+        "fragment_id": "forklift:synthetic-1#0",
+        "box": {
+          "left": 268.8,
+          "top": 162.0,
+          "right": 422.40000000000003,
+          "bottom": 284.40000000000003
+        }
+      },
+      {
+        "concept": "person",
+        "frame": 4,
+        "track_id": "person:synthetic-1",
+        "fragment_id": "person:synthetic-1#0",
+        "box": {
+          "left": 28.799999999999997,
+          "top": 79.2,
+          "right": 86.4,
+          "bottom": 259.2
+        }
+      },
+      {
+        "concept": "forklift",
+        "frame": 5,
+        "track_id": "forklift:synthetic-1",
+        "fragment_id": "forklift:synthetic-1#0",
+        "box": {
+          "left": 268.8,
+          "top": 162.0,
+          "right": 422.40000000000003,
+          "bottom": 284.40000000000003
+        }
+      },
+      {
+        "concept": "person",
+        "frame": 5,
+        "track_id": "person:synthetic-1",
+        "fragment_id": "person:synthetic-1#0",
+        "box": {
+          "left": 278.4,
+          "top": 79.2,
+          "right": 336.0,
+          "bottom": 259.2
+        }
+      },
+      {
+        "concept": "forklift",
+        "frame": 6,
+        "track_id": "forklift:synthetic-1",
+        "fragment_id": "forklift:synthetic-1#0",
+        "box": {
+          "left": 268.8,
+          "top": 162.0,
+          "right": 422.40000000000003,
+          "bottom": 284.40000000000003
+        }
+      },
+      {
+        "concept": "person",
+        "frame": 6,
+        "track_id": "person:synthetic-1",
+        "fragment_id": "person:synthetic-1#0",
+        "box": {
+          "left": 278.4,
+          "top": 79.2,
+          "right": 336.0,
+          "bottom": 259.2
+        }
+      },
+      {
+        "concept": "forklift",
+        "frame": 7,
+        "track_id": "forklift:synthetic-1",
+        "fragment_id": "forklift:synthetic-1#0",
+        "box": {
+          "left": 268.8,
+          "top": 162.0,
+          "right": 422.40000000000003,
+          "bottom": 284.40000000000003
+        }
+      },
+      {
+        "concept": "person",
+        "frame": 7,
+        "track_id": "person:synthetic-1",
+        "fragment_id": "person:synthetic-1#0",
+        "box": {
+          "left": 278.4,
+          "top": 79.2,
+          "right": 336.0,
+          "bottom": 259.2
+        }
+      },
+      {
+        "concept": "forklift",
+        "frame": 8,
+        "track_id": "forklift:synthetic-1",
+        "fragment_id": "forklift:synthetic-1#0",
+        "box": {
+          "left": 268.8,
+          "top": 162.0,
+          "right": 422.40000000000003,
+          "bottom": 284.40000000000003
+        }
+      },
+      {
+        "concept": "person",
+        "frame": 8,
+        "track_id": "person:synthetic-1",
+        "fragment_id": "person:synthetic-1#0",
+        "box": {
+          "left": 278.4,
+          "top": 79.2,
+          "right": 336.0,
+          "bottom": 259.2
+        }
+      },
+      {
+        "concept": "forklift",
+        "frame": 9,
+        "track_id": "forklift:synthetic-1",
+        "fragment_id": "forklift:synthetic-1#0",
+        "box": {
+          "left": 268.8,
+          "top": 162.0,
+          "right": 422.40000000000003,
+          "bottom": 284.40000000000003
+        }
+      },
+      {
+        "concept": "person",
+        "frame": 9,
+        "track_id": "person:synthetic-1",
+        "fragment_id": "person:synthetic-1#0",
+        "box": {
+          "left": 278.4,
+          "top": 79.2,
+          "right": 336.0,
+          "bottom": 259.2
+        }
+      },
+      {
+        "concept": "forklift",
+        "frame": 10,
+        "track_id": "forklift:synthetic-1",
+        "fragment_id": "forklift:synthetic-1#0",
+        "box": {
+          "left": 268.8,
+          "top": 162.0,
+          "right": 422.40000000000003,
+          "bottom": 284.40000000000003
+        }
+      },
+      {
+        "concept": "person",
+        "frame": 10,
+        "track_id": "person:synthetic-1",
+        "fragment_id": "person:synthetic-1#0",
+        "box": {
+          "left": 278.4,
+          "top": 79.2,
+          "right": 336.0,
+          "bottom": 259.2
+        }
+      },
+      {
+        "concept": "forklift",
+        "frame": 11,
+        "track_id": "forklift:synthetic-1",
+        "fragment_id": "forklift:synthetic-1#0",
+        "box": {
+          "left": 268.8,
+          "top": 162.0,
+          "right": 422.40000000000003,
+          "bottom": 284.40000000000003
+        }
+      },
+      {
+        "concept": "person",
+        "frame": 11,
+        "track_id": "person:synthetic-1",
+        "fragment_id": "person:synthetic-1#0",
+        "box": {
+          "left": 278.4,
+          "top": 79.2,
+          "right": 336.0,
+          "bottom": 259.2
+        }
+      },
+      {
+        "concept": "forklift",
+        "frame": 12,
+        "track_id": "forklift:synthetic-1",
+        "fragment_id": "forklift:synthetic-1#0",
+        "box": {
+          "left": 268.8,
+          "top": 162.0,
+          "right": 422.40000000000003,
+          "bottom": 284.40000000000003
+        }
+      },
+      {
+        "concept": "person",
+        "frame": 12,
+        "track_id": "person:synthetic-1",
+        "fragment_id": "person:synthetic-1#0",
+        "box": {
+          "left": 278.4,
+          "top": 79.2,
+          "right": 336.0,
+          "bottom": 259.2
+        }
+      },
+      {
+        "concept": "forklift",
+        "frame": 13,
+        "track_id": "forklift:synthetic-1",
+        "fragment_id": "forklift:synthetic-1#0",
+        "box": {
+          "left": 268.8,
+          "top": 162.0,
+          "right": 422.40000000000003,
+          "bottom": 284.40000000000003
+        }
+      },
+      {
+        "concept": "person",
+        "frame": 13,
+        "track_id": "person:synthetic-1",
+        "fragment_id": "person:synthetic-1#0",
+        "box": {
+          "left": 278.4,
+          "top": 79.2,
+          "right": 336.0,
+          "bottom": 259.2
+        }
+      },
+      {
+        "concept": "forklift",
+        "frame": 14,
+        "track_id": "forklift:synthetic-1",
+        "fragment_id": "forklift:synthetic-1#0",
+        "box": {
+          "left": 268.8,
+          "top": 162.0,
+          "right": 422.40000000000003,
+          "bottom": 284.40000000000003
+        }
+      },
+      {
+        "concept": "person",
+        "frame": 14,
+        "track_id": "person:synthetic-1",
+        "fragment_id": "person:synthetic-1#0",
+        "box": {
+          "left": 278.4,
+          "top": 79.2,
+          "right": 336.0,
+          "bottom": 259.2
+        }
+      },
+      {
+        "concept": "forklift",
+        "frame": 15,
+        "track_id": "forklift:synthetic-1",
+        "fragment_id": "forklift:synthetic-1#0",
+        "box": {
+          "left": 268.8,
+          "top": 162.0,
+          "right": 422.40000000000003,
+          "bottom": 284.40000000000003
+        }
+      },
+      {
+        "concept": "person",
+        "frame": 15,
+        "track_id": "person:synthetic-1",
+        "fragment_id": "person:synthetic-1#0",
+        "box": {
+          "left": 278.4,
+          "top": 79.2,
+          "right": 336.0,
+          "bottom": 259.2
+        }
+      },
+      {
+        "concept": "forklift",
+        "frame": 16,
+        "track_id": "forklift:synthetic-1",
+        "fragment_id": "forklift:synthetic-1#0",
+        "box": {
+          "left": 268.8,
+          "top": 162.0,
+          "right": 422.40000000000003,
+          "bottom": 284.40000000000003
+        }
+      },
+      {
+        "concept": "person",
+        "frame": 16,
+        "track_id": "person:synthetic-1",
+        "fragment_id": "person:synthetic-1#0",
+        "box": {
+          "left": 278.4,
+          "top": 79.2,
+          "right": 336.0,
+          "bottom": 259.2
+        }
+      },
+      {
+        "concept": "forklift",
+        "frame": 17,
+        "track_id": "forklift:synthetic-1",
+        "fragment_id": "forklift:synthetic-1#0",
+        "box": {
+          "left": 268.8,
+          "top": 162.0,
+          "right": 422.40000000000003,
+          "bottom": 284.40000000000003
+        }
+      },
+      {
+        "concept": "person",
+        "frame": 17,
+        "track_id": "person:synthetic-1",
+        "fragment_id": "person:synthetic-1#0",
+        "box": {
+          "left": 278.4,
+          "top": 79.2,
+          "right": 336.0,
+          "bottom": 259.2
+        }
+      },
+      {
+        "concept": "forklift",
+        "frame": 18,
+        "track_id": "forklift:synthetic-1",
+        "fragment_id": "forklift:synthetic-1#0",
+        "box": {
+          "left": 268.8,
+          "top": 162.0,
+          "right": 422.40000000000003,
+          "bottom": 284.40000000000003
+        }
+      },
+      {
+        "concept": "person",
+        "frame": 18,
+        "track_id": "person:synthetic-1",
+        "fragment_id": "person:synthetic-1#0",
+        "box": {
+          "left": 278.4,
+          "top": 79.2,
+          "right": 336.0,
+          "bottom": 259.2
+        }
+      },
+      {
+        "concept": "forklift",
+        "frame": 19,
+        "track_id": "forklift:synthetic-1",
+        "fragment_id": "forklift:synthetic-1#0",
+        "box": {
+          "left": 268.8,
+          "top": 162.0,
+          "right": 422.40000000000003,
+          "bottom": 284.40000000000003
+        }
+      },
+      {
+        "concept": "person",
+        "frame": 19,
+        "track_id": "person:synthetic-1",
+        "fragment_id": "person:synthetic-1#0",
+        "box": {
+          "left": 278.4,
+          "top": 79.2,
+          "right": 336.0,
+          "bottom": 259.2
+        }
+      },
+      {
+        "concept": "forklift",
+        "frame": 20,
+        "track_id": "forklift:synthetic-1",
+        "fragment_id": "forklift:synthetic-1#0",
+        "box": {
+          "left": 268.8,
+          "top": 162.0,
+          "right": 422.40000000000003,
+          "bottom": 284.40000000000003
+        }
+      },
+      {
+        "concept": "person",
+        "frame": 20,
+        "track_id": "person:synthetic-1",
+        "fragment_id": "person:synthetic-1#0",
+        "box": {
+          "left": 278.4,
+          "top": 79.2,
+          "right": 336.0,
+          "bottom": 259.2
+        }
+      },
+      {
+        "concept": "forklift",
+        "frame": 21,
+        "track_id": "forklift:synthetic-1",
+        "fragment_id": "forklift:synthetic-1#0",
+        "box": {
+          "left": 268.8,
+          "top": 162.0,
+          "right": 422.40000000000003,
+          "bottom": 284.40000000000003
+        }
+      },
+      {
+        "concept": "person",
+        "frame": 21,
+        "track_id": "person:synthetic-1",
+        "fragment_id": "person:synthetic-1#0",
+        "box": {
+          "left": 278.4,
+          "top": 79.2,
+          "right": 336.0,
+          "bottom": 259.2
+        }
+      },
+      {
+        "concept": "forklift",
+        "frame": 22,
+        "track_id": "forklift:synthetic-1",
+        "fragment_id": "forklift:synthetic-1#0",
+        "box": {
+          "left": 268.8,
+          "top": 162.0,
+          "right": 422.40000000000003,
+          "bottom": 284.40000000000003
+        }
+      },
+      {
+        "concept": "person",
+        "frame": 22,
+        "track_id": "person:synthetic-1",
+        "fragment_id": "person:synthetic-1#0",
+        "box": {
+          "left": 278.4,
+          "top": 79.2,
+          "right": 336.0,
+          "bottom": 259.2
+        }
+      },
+      {
+        "concept": "forklift",
+        "frame": 23,
+        "track_id": "forklift:synthetic-1",
+        "fragment_id": "forklift:synthetic-1#0",
+        "box": {
+          "left": 268.8,
+          "top": 162.0,
+          "right": 422.40000000000003,
+          "bottom": 284.40000000000003
+        }
+      },
+      {
+        "concept": "person",
+        "frame": 23,
+        "track_id": "person:synthetic-1",
+        "fragment_id": "person:synthetic-1#0",
+        "box": {
+          "left": 278.4,
+          "top": 79.2,
+          "right": 336.0,
+          "bottom": 259.2
+        }
+      },
+      {
+        "concept": "forklift",
+        "frame": 24,
+        "track_id": "forklift:synthetic-1",
+        "fragment_id": "forklift:synthetic-1#0",
+        "box": {
+          "left": 268.8,
+          "top": 162.0,
+          "right": 422.40000000000003,
+          "bottom": 284.40000000000003
+        }
+      },
+      {
+        "concept": "person",
+        "frame": 24,
+        "track_id": "person:synthetic-1",
+        "fragment_id": "person:synthetic-1#0",
+        "box": {
+          "left": 278.4,
+          "top": 79.2,
+          "right": 336.0,
+          "bottom": 259.2
+        }
+      }
+    ],
+    "gaps": [],
+    "tracks": []
+  },
+  "visualization": "Synthetic animated observation plane: boxes illustrate numeric fixture geometry, not recorded footage."
+}
