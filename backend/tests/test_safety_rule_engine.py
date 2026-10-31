@@ -78,6 +78,55 @@ def test_short_gap_is_review_candidate_not_interpolated():
     assert candidate["observed_coverage_ratio"] == pytest.approx(2 / 3, abs=.0001)
 
 
+def test_observed_zone_exit_does_not_create_missing_observation_review():
+    """A visible zone exit must split episodes, not look like occlusion."""
+    boxes = [obs("person", "p", frame, cx=.95 if frame in (9, 10) else .5)
+             for frame in range(21)]
+    outcome = evaluate_tracking(tracking(boxes), spec("person_in_zone", duration=.5, max_gap=2))
+    assert [(event["start_frame"], event["end_frame"]) for event in outcome["events"]] == [
+        (0, 8), (11, 20)
+    ]
+    assert outcome["review_items"] == []
+    assert outcome["review_count"] == 0
+    assert outcome["has_unresolved_review_items"] is False
+
+
+def test_visible_actor_exit_breaks_copresence_even_if_other_actor_is_present():
+    """Seeing the person outside the zone disproves joint occupancy, not missing data."""
+    boxes = [obs("person", "p", frame, cx=.95 if frame in (9, 10) else .5)
+             for frame in range(21)]
+    boxes.extend(obs("forklift", "f", frame) for frame in range(21))
+    outcome = evaluate_tracking(tracking(boxes), spec(duration=.5, max_gap=2))
+    assert [(event["start_frame"], event["end_frame"]) for event in outcome["events"]] == [
+        (0, 8), (11, 20)
+    ]
+    assert outcome["review_items"] == []
+
+
+def test_missing_actor_in_pair_does_not_bridge_when_other_actor_is_observed():
+    """A partial observation gap is not a blank interval for all actors."""
+    boxes = [obs("person", "p", frame) for frame in (0, 1, 4, 5)]
+    boxes.extend(obs("forklift", "f", frame) for frame in range(6))
+    outcome = evaluate_tracking(tracking(boxes), spec(duration=.2, max_gap=2))
+    assert [(event["start_frame"], event["end_frame"]) for event in outcome["events"]] == [
+        (0, 1), (4, 5)
+    ]
+    assert not [item for item in outcome["review_items"] if "event_id" in item]
+
+
+def test_all_actors_missing_can_still_form_review_only_episode():
+    """Genuinely absent observations can be associated but never verified as continuous."""
+    boxes = [obs("person", "p", frame) for frame in (0, 1, 4, 5)]
+    boxes.extend(obs("forklift", "f", frame) for frame in (0, 1, 4, 5))
+    outcome = evaluate_tracking(tracking(boxes), spec(duration=.2, max_gap=2))
+    assert outcome["event_count"] == 2
+    assert len([item for item in outcome["review_items"] if "event_id" in item]) == 1
+    episode = next(item for item in outcome["review_items"] if "event_id" in item)
+    assert (episode["start_frame"], episode["end_frame"]) == (0, 5)
+    assert episode["contains_missing_observations"] is True
+    assert episode["status"] == "needs_review"
+
+
 def test_configurable_gap_tolerance_wont_invent_hazard():
     boxes = [obs("person", "p", f, fragment=i) for i, f in enumerate((0, 3, 6, 9))]
     report = tracking(boxes)

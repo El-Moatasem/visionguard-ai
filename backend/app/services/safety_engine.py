@@ -129,7 +129,17 @@ def evaluate_tracking(report: dict[str, Any], rule: RuleSpec) -> dict[str, Any]:
         chunks: list[list[int]] = [[frames[0]]]
         for frame in frames[1:]:
             previous = chunks[-1][-1]
-            if frame - previous - 1 > rule.max_observation_gap_frames:
+            missing = frame - previous - 1
+            # Missing *matches* are not necessarily missing observations.
+            # An actor observed outside the zone (or a forklift not co-present)
+            # is affirmative evidence that the rule stopped matching. Never
+            # bridge that interval as a provisional missing-data episode.
+            all_actors_unobserved = all(
+                (actor, intermediate_frame) not in all_observations
+                for intermediate_frame in range(previous + 1, frame)
+                for actor in actors
+            )
+            if missing > rule.max_observation_gap_frames or not all_actors_unobserved:
                 chunks.append([frame])
             else:
                 chunks[-1].append(frame)

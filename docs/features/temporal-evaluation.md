@@ -30,3 +30,22 @@ SAM may return sparse observations. Absence of a box in an intervening frame can
 5. Repeat with `max_observation_gap_frames=0` and a small bounded value. Record false negatives, false positives, review burden and identity switches in the benchmark report before adjusting defaults.
 
 This feature is for research/demonstration and is not a certified safety monitor or emergency-alert system.
+
+## Observed exits versus missing observations
+
+An interval with **no rule match** does not necessarily contain missing video observations.
+If any actor in a configured rule is observed at an intermediate frame, that interval
+is a known interruption in that rule's match sequence, not an all-actors-unobserved
+gap. This includes a person visibly stepping outside the zone or a forklift
+remaining visible while a pedestrian is no longer jointly observed. Such intervals
+split observed episodes and do not produce a provisional missing-data review item.
+
+Only intervals where **none of the rule's actors has an intermediate observation**
+can be provisionally associated under `max_observation_gap_frames`. This strict
+association does not claim continuous identity, presence, or rule satisfaction.
+Actual tracking gaps near the configured zone may still generate localized review
+items independently.
+
+A consistently strided SAM output is **not** yet assumed; confirm the native
+observation cadence with `inspect_sam_frames.py` on a real SAM summary before
+calibrating stride-aware temporal semantics or coalescing per-gap review items.
