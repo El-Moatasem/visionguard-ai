@@ -1,10 +1,12 @@
 # VisionGuard AI
 
+**Video → verifiable safety observations → human-reviewed evidence.**
+
 **Explainable visual safety intelligence powered by Meta SAM 3.1 + Muse Spark**
 
 **Meta Global AI Developer Hackathon 2026** · Indie Developer · Push the Frontier
 
-> **Current stage: Video ingestion, SAM object tracking, and deterministic reviewer-configured safety rules.** FastAPI upload/list/playback and a mobile-first Next.js frontend are included. This prototype reports potential rule matches, **not** certified danger, real-time monitoring, or safety compliance. Live remote Meta calls were not executed during package generation.
+> **Current stage: Five core milestones packaged, including evidence dashboard and synthetic replay.** FastAPI upload/list/playback and a mobile-first Next.js frontend are included. This research prototype reports observed potential rule matches, localized uncertainty, and human review decisions; **not** certified danger, real-time monitoring, or safety compliance. Live remote Meta calls were not executed during package generation.
 
 VisionGuard aims to help safety reviewers analyze short, authorized workplace videos. The proposed workflow is: detect/track people and vehicles using SAM 3.1; interpret reviewer-specified monitoring rules with Muse Spark; evaluate temporal events deterministically; show evidence with timestamped, human-reviewable incident reports. It **must not** be used as a replacement for trained safety professionals or real-time emergency protection.
 
@@ -24,7 +26,7 @@ VisionGuard aims to help safety reviewers analyze short, authorized workplace vi
 | Day 2 | Upload API, Next.js interface, video playback | **Implemented in `feature/video-ingestion`; validate locally** |
 | Days 3–4 | SAM tracks, fragment uncertainty + approximate box overlays | **Implemented in `feature/object-tracking`; live verification pending** |
 | Days 5–6 | Muse rule translation + deterministic event logic | **Implemented in `feature/safety-rule-engine`; live validation pending** |
-| Days 7–8 | Evidence dashboard and incident timeline | Planned |
+| Days 7–8 | Evidence snapshots, reviewer decisions, report export, synthetic replay | **Implemented in `feature/evidence-dashboard`; real-video validation pending** |
 | Days 9–10 | Benchmark, demo, submission | Planned (compress to fit official dates) |
 
 Full stage details live in [`docs/`](docs/).
@@ -124,7 +126,7 @@ Open `summary.json` in a code editor. A completed request with zero matches is *
 python -m pytest backend/tests -q
 ```
 
-The automated suite checks the ingestion and tracking endpoints, key secrecy, CLI status, result normalization, missing-frame gaps, and mocked job execution. These tests **do not call Meta** and do not demonstrate SAM's real-world tracking accuracy.
+The automated suite checks the ingestion, tracking, rule, evidence, review, and synthetic replay endpoints, key secrecy, CLI status, result normalization, missing-frame gaps, and mocked job execution. These tests **do not call Meta** and do not demonstrate SAM's real-world tracking accuracy.
 
 ## Repository map
 
@@ -156,8 +158,8 @@ visionguard-ai/
 
 - Video upload/list/playback endpoints are now included for **local prototype use only**. They are NOT production-safe without authentication and abuse prevention.
 - SAM returns masks and track geometry, not a guarantee of safety compliance, physical distance, or collision prediction.
-- The proposed event engine will use deterministic rules over normalized tracks, with **reviewer-configured** operating zones and explicit uncertainty.
-- Muse Spark can interpret instructions and help configure a rule but should not override deterministic checks or certify safety conclusions.
+- The event engine uses deterministic rules over normalized tracks, with **reviewer-configured** operating zones and explicit uncertainty.
+- Muse Spark can draft a supported rule proposal for human approval but must not override deterministic checks or certify safety conclusions.
 - Preserve provenance: source clip hash, model ID, request timestamp, frame/time indices, rule version, reviewer decision (planned in later stages).
 
 ## Deployment recommendation
@@ -242,3 +244,59 @@ After obtaining real, licensed SAM output, inspect its frame stride with `python
 See [`docs/features/temporal-evaluation.md`](docs/features/temporal-evaluation.md) and [`docs/architecture/temporal-evaluation-v2.md`](docs/architecture/temporal-evaluation-v2.md).
 
 **Compatibility:** `min_consecutive_frames` has been replaced in requests and Muse draft output by `min_duration_seconds`, and results now have separate `review_items`. This is not yet a deployed, calibrated, or validated safety monitor.
+
+
+## Milestone 5 — Evidence and human review (packaged)
+
+Keep **VisionGuard AI** as the hackathon product. Its generalizable compiler idea is future direction;
+the current implementation supports `person_in_zone` and `person_and_forklift_in_zone` only.
+
+After a successful local SAM job and safety-rule evaluation, use **Save evidence snapshot** in the
+tracking workspace. The evidence view preserves the approved rule, source video SHA256, observed
+intervals, localized uncertainty, and selected source bounding-box samples. Each report supports
+**confirmed / rejected / unresolved** reviewer decisions, event seek, JSON export, and printable HTML.
+These decisions append to a local audit history; they are not certified evidence or tamper-proof records.
+The normal app is local-only and has **no authentication**. Never deploy those endpoints publicly.
+
+### Explore deterministic replay without Meta credits
+
+Open [the synthetic replay page](http://localhost:3000/replay) after starting both servers. The three
+fixtures demonstrate co-presence, an occluded track and a negative control. They contain **synthetic
+hand-authored coordinates, not real footage or actual SAM outputs**. The browser animates simple
+rectangles, accepts rule changes, seeks to observed intervals, and allows ephemeral reviewer decisions.
+Offline replay proves the rule engine works on fixtures only, **not** that SAM performs correctly.
+
+### Public read-only replay mode (optional)
+
+Start FastAPI with `VISIONGUARD_REPLAY_ONLY=1` and build the Next.js frontend with
+`NEXT_PUBLIC_REPLAY_ONLY=1`; keep `BACKEND_URL` pointed at the replay-only backend. In this configuration,
+uploads, tracking, billable Muse calls and local evidence-write endpoints are **not registered**.
+Verify the public deployment uses those flags and no credentials are exposed before linking judges.
+
+### Check actual SAM frame sampling before reporting accuracy
+
+```bash
+python -m backend.scripts.meta_smoke sam \
+  --video samples/warehouse.mp4 --concept person --concept forklift \
+  --output outputs/live-sam
+python -m backend.scripts.inspect_sam_frames outputs/live-sam/person/summary.json
+python -m backend.scripts.inspect_sam_frames outputs/live-sam/forklift/summary.json
+```
+
+Use only authorized footage; these are **live, billable requests** and have not been run by the
+package author. Do not infer verified occupancy across unobserved frames. Check the official SAM
+response shape and sampling cadence before adapting to strided results. Frame-to-time alignment in
+the current player remains approximate.
+
+### Feature 5 documentation
+
+- [Architecture: evidence and replay](docs/architecture/evidence-review-and-replay.md)
+- [Human review and exports](docs/features/evidence-snapshots-human-review.md)
+- [Synthetic replay limitations](docs/features/synthetic-replay.md)
+- [Milestone and acceptance checklist](docs/milestones/05-evidence-dashboard.md)
+- [Synthetic fixture provenance](benchmarks/replay/README.md)
+
+**Not implemented:** generic SceneOps object categories, emergency-exit blockage or pallet detection,
+continuous real-time camera inference, calibrated speed/distance, or production-safe authentication.
+Potential future extension: reuse the rule-to-evidence architecture for other industries once each
+new object concept and rule operator is implemented and validated.

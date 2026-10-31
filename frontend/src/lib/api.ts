@@ -130,3 +130,55 @@ export async function evaluateSafetyRule(jobId: string, rule: RuleSpec): Promise
     method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({rule}),
   }));
 }
+
+// Feature 5: persistent local evidence reports (not authenticated for public deployment).
+export type EvidenceReview = {id: string; item_id: string; decision: "confirmed" | "rejected" | "unresolved"; reviewer: string; note: string; recorded_at: string};
+export type EvidenceItem = {item_id: string; kind: "observed_event" | "needs_review"; observation: SafetyEvent | SafetyReviewItem};
+export type EvidenceReport = {
+  id: string; created_at: string; origin: "live_tracking_job";
+  source: {video_name: string; video_sha256: string; tracking_job_id: string; tracking_sha256: string; model: string; time_alignment: string};
+  rule: RuleSpec; evaluation: SafetyEvaluation; items: EvidenceItem[]; reviews: EvidenceReview[];
+  observations: {item_id: string; sampled_boxes: TrackingBox[]; sampling_note: string}[];
+  disclaimer: string;
+};
+export type EvidenceSummary = {id: string; created_at: string; rule_name: string; event_count: number; review_count: number};
+export async function createEvidenceReport(trackingJobId: string, rule: RuleSpec): Promise<EvidenceReport> {
+  return readResponse<EvidenceReport>(await fetch(`${API}/evidence-reports`, {
+    method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({tracking_job_id: trackingJobId, rule}),
+  }));
+}
+export async function fetchEvidenceReport(id: string): Promise<EvidenceReport> {
+  return readResponse<EvidenceReport>(await fetch(`${API}/evidence-reports/${encodeURIComponent(id)}`, {cache: "no-store"}));
+}
+export async function listEvidenceReports(jobId: string): Promise<EvidenceSummary[]> {
+  const result = await readResponse<{items: EvidenceSummary[]}>(await fetch(`${API}/evidence-reports?tracking_job_id=${encodeURIComponent(jobId)}`, {cache: "no-store"}));
+  return result.items;
+}
+export async function reviewEvidence(reportId: string, itemId: string, decision: EvidenceReview["decision"], note: string): Promise<EvidenceReview> {
+  return readResponse<EvidenceReview>(await fetch(`${API}/evidence-reports/${encodeURIComponent(reportId)}/reviews`, {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({item_id: itemId, decision, note, reviewer: "Demo reviewer"}),
+  }));
+}
+export function evidenceExportUrl(id: string, format: "json" | "html"): string {
+  return `${API}/evidence-reports/${encodeURIComponent(id)}/export.${format}`;
+}
+
+// Read-only synthetic replay: not video footage, not actual SAM output.
+export type ReplaySummary = {id: string; title: string; description: string; provenance: "synthetic_fixture"};
+export type ReplayScenario = ReplaySummary & {
+  live_inference: false; default_rule: RuleSpec; tracking_report: TrackingReport;
+  video_asset_included: false; visualization: string; rights: string;
+};
+export async function fetchReplayScenarios(): Promise<ReplaySummary[]> {
+  const result = await readResponse<{items: ReplaySummary[]}>(await fetch(`${API}/replay/scenarios`));
+  return result.items;
+}
+export async function fetchReplayScenario(id: string): Promise<ReplayScenario> {
+  return readResponse<ReplayScenario>(await fetch(`${API}/replay/scenarios/${encodeURIComponent(id)}`));
+}
+export async function evaluateReplay(id: string, rule: RuleSpec): Promise<SafetyEvaluation> {
+  return readResponse<SafetyEvaluation>(await fetch(`${API}/replay/scenarios/${encodeURIComponent(id)}/evaluate`, {
+    method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({rule}),
+  }));
+}

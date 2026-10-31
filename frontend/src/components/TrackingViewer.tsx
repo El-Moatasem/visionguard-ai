@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import SafetyRulePanel from "@/components/SafetyRulePanel";
+import EvidenceDashboard from "@/components/EvidenceDashboard";
 import {
   fetchTrackingJob, fetchTrackingJobs, fetchTrackingResult, playbackUrl,
-  startTracking, type TrackingJob, type TrackingReport, type VideoItem, type SafetyZone,
+  startTracking, type TrackingJob, type TrackingReport, type VideoItem, type SafetyZone, type RuleSpec,
 } from "@/lib/api";
 
 const PALETTE: Record<string, string> = { person: "#45d9b7", forklift: "#f5bb77" };
@@ -21,6 +22,7 @@ export default function TrackingViewer({ video }: { video: VideoItem }) {
   const [report, setReport] = useState<TrackingReport | null>(null);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [approvedRule, setApprovedRule] = useState<RuleSpec | null>(null);
 
   useEffect(() => {
     let current = true;
@@ -28,7 +30,7 @@ export default function TrackingViewer({ video }: { video: VideoItem }) {
     setReport(null);
     setJob(null);
     setError("");
-    setDrawing(false); setDrawStart(null); setDrawCurrent(null);
+    setDrawing(false); setDrawStart(null); setDrawCurrent(null); setApprovedRule(null);
     void fetchTrackingJobs(video.id).then((jobs) => {
       if (current) setJob(jobs[0] ?? null);
     }).catch((err: unknown) => {
@@ -64,7 +66,7 @@ export default function TrackingViewer({ video }: { video: VideoItem }) {
   async function analyze() {
     setSubmitting(true);
     setError("");
-    setReport(null);
+    setReport(null); setApprovedRule(null);
     try { setJob(await startTracking(video.id)); }
     catch (err) { setError(err instanceof Error ? err.message : "Tracking request failed"); }
     finally { setSubmitting(false); }
@@ -96,7 +98,7 @@ export default function TrackingViewer({ video }: { video: VideoItem }) {
       const zone = {name: "Drawn safety zone", x_min: Math.min(drawStart.x,p.x),
         y_min: Math.min(drawStart.y,p.y), x_max: Math.max(drawStart.x,p.x), y_max: Math.max(drawStart.y,p.y)};
       if (zone.x_max-zone.x_min >= .02 && zone.y_max-zone.y_min >= .02) {
-        setSafetyZone(zone); setDrawing(false);
+        setSafetyZone(zone); setDrawing(false); setApprovedRule(null);
       }
     }
     setDrawStart(null);setDrawCurrent(null);
@@ -154,9 +156,12 @@ export default function TrackingViewer({ video }: { video: VideoItem }) {
         </div>)}
         {report.tracks.length === 0 && <p className="helper">No boxes matched the requested concepts. This can be a valid SAM result.</p>}
         </div>
-        {job?.status === "completed" && <SafetyRulePanel key={job.id} jobId={job.id} zone={safetyZone} onZoneChange={setSafetyZone}
+        {job?.status === "completed" && <SafetyRulePanel key={job.id} jobId={job.id} zone={safetyZone} onZoneChange={z => {setSafetyZone(z);setApprovedRule(null);}}
           drawing={drawing} onDrawingChange={setDrawing}
+          onEvaluated={(_,rule) => setApprovedRule(rule)}
           onSeek={(time) => {if(element.current){element.current.currentTime=time;setSeconds(time);}}} />}
+        {job?.status === "completed" && <EvidenceDashboard key={`evidence-${job.id}`} jobId={job.id} rule={approvedRule}
+          onSeek={(time) => {if(element.current){element.current.currentTime=time;setSeconds(time);}}} /> }
       </>}
     </div>
   </div>;

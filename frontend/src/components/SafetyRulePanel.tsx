@@ -13,13 +13,14 @@ const PRESETS: Record<string, SafetyZone> = {
   full: { name: "Whole frame", x_min: 0, y_min: 0, x_max: 1, y_max: 1 },
 };
 
-export default function SafetyRulePanel({ jobId, onZoneChange, zone, drawing, onDrawingChange, onSeek }: {
+export default function SafetyRulePanel({ jobId, onZoneChange, zone, drawing, onDrawingChange, onSeek, onEvaluated }: {
   jobId: string;
   zone: SafetyZone;
   drawing: boolean;
   onZoneChange: (zone: SafetyZone) => void;
   onDrawingChange: (value: boolean) => void;
   onSeek: (seconds: number) => void;
+  onEvaluated?: (evaluation: SafetyEvaluation | null, rule: RuleSpec | null) => void;
 }) {
   const [ruleType, setRuleType] = useState<RuleType>("person_and_forklift_in_zone");
   const [ruleName, setRuleName] = useState("Worker and forklift in operating area");
@@ -35,7 +36,7 @@ export default function SafetyRulePanel({ jobId, onZoneChange, zone, drawing, on
   function applyZone(next: SafetyZone) {
     onZoneChange(next);
     setBoundInputs(null);
-    setEvaluation(null);
+    setEvaluation(null); onEvaluated?.(null,null);
   }
   function changeBound(field: "x_min" | "y_min" | "x_max" | "y_max", value: string) {
     setBoundInputs(previous => ({...(previous ?? Object.fromEntries(
@@ -46,7 +47,7 @@ export default function SafetyRulePanel({ jobId, onZoneChange, zone, drawing, on
     const next = Number(value);
     if (Number.isFinite(next)) {
       onZoneChange({...zone, [field]: next});
-      setEvaluation(null);
+      setEvaluation(null); onEvaluated?.(null,null);
     }
   }
   async function interpret() {
@@ -60,6 +61,7 @@ export default function SafetyRulePanel({ jobId, onZoneChange, zone, drawing, on
     setRuleName(draft.name);
     setRuleType(draft.rule_type);
     setDuration(draft.min_duration_seconds);
+    onEvaluated?.(null,null);
     setDraft(null);
     setEvaluation(null);
   }
@@ -69,7 +71,7 @@ export default function SafetyRulePanel({ jobId, onZoneChange, zone, drawing, on
       name: ruleName, rule_type: ruleType, min_duration_seconds: duration,
       max_observation_gap_frames: gapTolerance, zone,
     };
-    try { setEvaluation(await evaluateSafetyRule(jobId, rule)); }
+    try { const result = await evaluateSafetyRule(jobId, rule); setEvaluation(result); onEvaluated?.(result,rule); }
     catch (err) { setError(err instanceof Error ? err.message : "Rule evaluation failed"); }
     finally { setBusy(null); }
   }
@@ -95,13 +97,13 @@ export default function SafetyRulePanel({ jobId, onZoneChange, zone, drawing, on
       {draft.rule_type !== "unsupported" && <button className="button button-secondary" type="button" onClick={acceptDraft}>Approve and apply rule draft</button>}
     </div>}
     <div className="safety-fields">
-      <label className="safety-label">Rule name<input className="safety-input" value={ruleName} maxLength={80} onChange={e => {setRuleName(e.target.value);setEvaluation(null);}} /></label>
-      <label className="safety-label">Rule type<select className="safety-input" value={ruleType} onChange={e => {setRuleType(e.target.value as RuleType);setEvaluation(null);}}>
+      <label className="safety-label">Rule name<input className="safety-input" value={ruleName} maxLength={80} onChange={e => {setRuleName(e.target.value);setEvaluation(null);onEvaluated?.(null,null);}} /></label>
+      <label className="safety-label">Rule type<select className="safety-input" value={ruleType} onChange={e => {setRuleType(e.target.value as RuleType);setEvaluation(null);onEvaluated?.(null,null);}}>
         <option value="person_and_forklift_in_zone">Person + forklift simultaneously in zone</option>
         <option value="person_in_zone">Person foot-point in zone</option>
       </select></label>
-      <label className="safety-label">Minimum observed duration (seconds)<input className="safety-input" type="number" min={0.01} max={30} step={0.1} value={duration} onChange={e => {setDuration(Number(e.target.value));setEvaluation(null);}} /></label>
-      <label className="safety-label">Max missing frames for review association<input className="safety-input" type="number" min={0} max={30} step={1} value={gapTolerance} onChange={e => {setGapTolerance(Number(e.target.value));setEvaluation(null);}} /></label>
+      <label className="safety-label">Minimum observed duration (seconds)<input className="safety-input" type="number" min={0.01} max={30} step={0.1} value={duration} onChange={e => {setDuration(Number(e.target.value));setEvaluation(null);onEvaluated?.(null,null);}} /></label>
+      <label className="safety-label">Max missing frames for review association<input className="safety-input" type="number" min={0} max={30} step={1} value={gapTolerance} onChange={e => {setGapTolerance(Number(e.target.value));setEvaluation(null);onEvaluated?.(null,null);}} /></label>
       <label className="safety-label">Zone preset<select className="safety-input" defaultValue="center" onChange={e => applyZone(PRESETS[e.target.value])}>
         <option value="center">Center (20–80%)</option><option value="left">Left half</option>
         <option value="right">Right half</option><option value="full">Whole frame</option>
