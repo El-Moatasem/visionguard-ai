@@ -1,5 +1,7 @@
 # VisionGuard AI
 
+> **Performance/testing build (Nov 1, 2026):** SAM jobs now run in a background worker thread, default mask conversion is lightweight, `one_bit` masks reduce stream size, and multi-video preflight testing is available. Local offline backend tests have passed; **live SAM end-to-end performance is not yet verified by this package**. See [performance and multi-video testing](docs/13-performance-and-multi-video-testing.md).
+
 **Video → verifiable safety observations → human-reviewed evidence.**
 
 **Explainable visual safety intelligence powered by Meta SAM 3.1 + Muse Spark**
@@ -107,14 +109,8 @@ python -m backend.scripts.meta_smoke sam \
   --output outputs/retry
 ```
 
-Results are written under `outputs/day1/person/` and `outputs/day1/forklift/`, including:
-
-```text
-summary.json        # real parsed bounding boxes, masks and track extents
-mask-0000.svg       # decoded inspectable segmentation-mask paths
-mask-0001.svg
-...
-```
+Results are written under `outputs/day1/person/` and `outputs/day1/forklift/`.
+`summary.json` contains real completed parsed bounding boxes and lightweight mask metadata; SVG exports are optional with `--write-masks` and disabled by default for responsiveness.
 
 Open `summary.json` in a code editor. A completed request with zero matches is **valid**, not proof that the model failed. Inspect `tracks`, `visible_frames`, `box_count` and `mask_count`, and compare with the actual clip. Track IDs from independent concept requests are **not** automatically globally unique; normalize them when combining on Days 3–4.
 

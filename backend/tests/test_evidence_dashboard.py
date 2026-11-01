@@ -125,10 +125,11 @@ def test_evidence_inputs_are_strict_and_missing_ids(monkeypatch, tmp_path):
     assert client.post("/api/v1/evidence-reports",json={"tracking_job_id":job_id,"rule":rule()}).status_code == 409
 
 
-
 def test_replay_only_mode_hides_live_and_persistent_routes():
     env = dict(os.environ, VISIONGUARD_REPLAY_ONLY="1")
 
+    # Verify actual HTTP routing, not internal FastAPI/Starlette router shapes.
+    # Recent releases may include _IncludedRouter without a .path attribute.
     code = """
 from fastapi.testclient import TestClient
 from backend.app.main import app
@@ -148,12 +149,10 @@ with TestClient(app) as client:
 
     for method, path in blocked:
         response = client.request(method, path)
-        assert response.status_code == 404, (
-            method, path, response.status_code
-        )
+        assert response.status_code == 404, (method, path, response.status_code)
 
     status = client.get("/api/v1/meta/status")
-    assert status.status_code == 200
+    assert status.status_code == 200, status.text
     assert status.json()["key_present"] is False
 """
 
@@ -164,6 +163,4 @@ with TestClient(app) as client:
         env=env,
         timeout=15,
     )
-
     assert proc.returncode == 0, proc.stderr
-

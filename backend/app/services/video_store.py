@@ -18,7 +18,7 @@ from fastapi import UploadFile
 
 from backend.app.config import ROOT
 
-DEFAULT_MAX_BYTES = 25 * 1024 * 1024
+DEFAULT_MAX_BYTES = 100 * 1024 * 1024
 CHUNK_SIZE = 1024 * 1024
 ID_RE = re.compile(r"^[0-9a-f]{32}$")
 

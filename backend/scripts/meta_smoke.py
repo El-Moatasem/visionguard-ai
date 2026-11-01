@@ -28,6 +28,8 @@ def make_parser() -> argparse.ArgumentParser:
     sam.add_argument("--concept", action="append", required=True,
                      help="One noun phrase, repeat to test more object classes")
     sam.add_argument("--output", type=Path, default=Path("outputs/day1"))
+    sam.add_argument("--write-masks", action="store_true", help="Export heavy SVG masks for debugging only")
+    sam.add_argument("--parallel", action="store_true", help="Test concurrent concept calls; may increase credit/rate-limit pressure")
     return parser
 
 
@@ -45,7 +47,9 @@ def main(argv: list[str] | None = None) -> int:
             if bool(args.video) == bool(args.file_id):
                 parser.error("For SAM, provide exactly one of --video or --file-id")
             asyncio.run(run_video(args.video or Path("."), args.concept,
-                                  args.output, args.file_id))
+                                  args.output, args.file_id,
+                                  write_masks=args.write_masks,
+                                  concurrent=args.parallel))
         return 0
     except (RuntimeError, ValueError, OSError, ImportError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
