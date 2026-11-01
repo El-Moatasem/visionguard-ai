@@ -57,7 +57,7 @@ export default function TrackingViewer({ video }: { video: VideoItem }) {
   // Poll a separate lightweight, read-only snapshot for progressive overlays.
   // A preview is never treated as a complete safety/evidence report.
   useEffect(() => {
-    if (!job || job.status === "completed") return;
+    if (!job || !["queued", "running"].includes(job.status)) return;
     let current = true;
     const tick = () => {
       void fetchTrackingPreview(job.id).then(data => {
