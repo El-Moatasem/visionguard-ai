@@ -127,6 +127,40 @@ def test_evidence_inputs_are_strict_and_missing_ids(monkeypatch, tmp_path):
 
 def test_replay_only_mode_hides_live_and_persistent_routes():
     env = dict(os.environ, VISIONGUARD_REPLAY_ONLY="1")
-    code = "from backend.app.main import app; a={r.path for r in app.routes}; assert '/api/v1/replay/scenarios' in a; assert '/api/v1/videos' not in a; assert '/api/v1/evidence-reports' not in a; assert '/api/v1/rules/interpret' not in a; assert '/api/v1/meta/status' in a"
-    proc = subprocess.run([sys.executable,"-c",code],capture_output=True,text=True,env=env,timeout=15)
+
+    # Verify actual HTTP routing, not internal FastAPI/Starlette router shapes.
+    # Recent releases may include _IncludedRouter without a .path attribute.
+    code = """
+from fastapi.testclient import TestClient
+from backend.app.main import app
+
+with TestClient(app) as client:
+    response = client.get("/api/v1/replay/scenarios")
+    assert response.status_code == 200, response.text
+
+    blocked = [
+        ("GET", "/api/v1/videos"),
+        ("POST", "/api/v1/videos"),
+        ("GET", "/api/v1/evidence-reports"),
+        ("POST", "/api/v1/evidence-reports"),
+        ("POST", "/api/v1/rules/interpret"),
+        ("POST", "/api/v1/videos/test/tracking-jobs"),
+    ]
+
+    for method, path in blocked:
+        response = client.request(method, path)
+        assert response.status_code == 404, (method, path, response.status_code)
+
+    status = client.get("/api/v1/meta/status")
+    assert status.status_code == 200, status.text
+    assert status.json()["key_present"] is False
+"""
+
+    proc = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=15,
+    )
     assert proc.returncode == 0, proc.stderr

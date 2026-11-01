@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointer
 import SafetyRulePanel from "@/components/SafetyRulePanel";
 import EvidenceDashboard from "@/components/EvidenceDashboard";
 import {
-  fetchTrackingJob, fetchTrackingJobs, fetchTrackingResult, playbackUrl,
+  fetchTrackingJob, fetchTrackingJobs, fetchTrackingResult, fetchTrackingPreview, playbackUrl,
   startTracking, type TrackingJob, type TrackingReport, type TrackingBox, type VideoItem, type SafetyZone, type RuleSpec,
 } from "@/lib/api";
 
@@ -20,6 +20,7 @@ export default function TrackingViewer({ video }: { video: VideoItem }) {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [job, setJob] = useState<TrackingJob | null>(null);
   const [report, setReport] = useState<TrackingReport | null>(null);
+  const [preview, setPreview] = useState<TrackingReport | null>(null);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [approvedRule, setApprovedRule] = useState<RuleSpec | null>(null);
@@ -28,6 +29,7 @@ export default function TrackingViewer({ video }: { video: VideoItem }) {
     let current = true;
     setSeconds(0);
     setReport(null);
+    setPreview(null);
     setJob(null);
     setError("");
     setDrawing(false); setDrawStart(null); setDrawCurrent(null); setApprovedRule(null);
@@ -49,6 +51,21 @@ export default function TrackingViewer({ video }: { video: VideoItem }) {
     }); };
     const timer = window.setInterval(tick, 2500);
     tick();
+    return () => { current = false; window.clearInterval(timer); };
+  }, [job?.id, job?.status]);
+
+  // Poll a separate lightweight, read-only snapshot for progressive overlays.
+  // A preview is never treated as a complete safety/evidence report.
+  useEffect(() => {
+    if (!job || job.status === "completed") return;
+    let current = true;
+    const tick = () => {
+      void fetchTrackingPreview(job.id).then(data => {
+        if (current && data) setPreview(data);
+      }).catch(() => { /* Status polling reports connectivity failures. */ });
+    };
+    tick();
+    const timer = window.setInterval(tick, 2500);
     return () => { current = false; window.clearInterval(timer); };
   }, [job?.id, job?.status]);
 
@@ -85,7 +102,7 @@ export default function TrackingViewer({ video }: { video: VideoItem }) {
   async function analyze() {
     setSubmitting(true);
     setError("");
-    setReport(null); setApprovedRule(null);
+    setReport(null); setPreview(null); setApprovedRule(null);
     try { setJob(await startTracking(video.id)); }
     catch (err) { setError(err instanceof Error ? err.message : "Tracking request failed"); }
     finally { setSubmitting(false); }
@@ -125,26 +142,27 @@ export default function TrackingViewer({ video }: { video: VideoItem }) {
 
   // Pre-index observations to avoid scanning every box on every video frame.
   // Missing frames intentionally have no overlay; do not invent/interpolate.
+  const displayReport = report ?? preview;
   const boxesByFrame = useMemo(() => {
     const index = new Map<number, TrackingBox[]>();
-    for (const box of report?.boxes ?? []) {
+    for (const box of displayReport?.boxes ?? []) {
       const items = index.get(box.frame) ?? [];
       items.push(box);
       index.set(box.frame, items);
     }
     return index;
-  }, [report]);
-  const fps = report?.media_probe.fps ?? report?.media_metadata?.fps;
+  }, [displayReport]);
+  const fps = displayReport?.media_probe.fps ?? displayReport?.media_metadata?.fps;
   const frame = fps ? Math.round(seconds * fps) : null;
   const overlays = frame === null ? [] : boxesByFrame.get(frame) ?? [];
-  const showOverlay = Boolean(report && frame !== null && dimensions.width && dimensions.height);
+  const showOverlay = Boolean(displayReport && frame !== null && dimensions.width && dimensions.height);
   const samMaxBytes = 25 * 1024 * 1024;
   const tooLargeForSam = video.size_bytes > samMaxBytes;
   const busy = submitting || job?.status === "running" || job?.status === "queued";
 
   return <div className="tracking-viewer">
     <div className="tracking-player">
-      <video key={video.id} ref={element} src={playbackUrl(video)} controls playsInline preload="metadata"
+      <video key={video.id} ref={element} src={playbackUrl(video)} controls playsInline loop={busy} preload="metadata"
         className="player" onTimeUpdate={(e) => setSeconds(e.currentTarget.currentTime)}
         onLoadedMetadata={(e) => setDimensions({ width: e.currentTarget.videoWidth, height: e.currentTarget.videoHeight })}/>
       {showOverlay && <svg className={`tracking-overlay ${drawing ? "tracking-draw-mode" : ""}`} viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
@@ -178,6 +196,12 @@ export default function TrackingViewer({ video }: { video: VideoItem }) {
       {!video.sam_compatible_container && <p className="error">WebM is not supported by SAM. Convert to H.264 MP4 first.</p>}
       {tooLargeForSam && <p className="error">This video exceeds the 25 MiB SAM analysis limit. Uploads may be up to 100 MiB, but clips must be compressed before inference.</p>}
       {job && <p className="helper" role="status">{job.message}</p>}
+      {preview && !report && <p className="helper" role="status">
+        Live progress preview: {preview.box_count} observed boxes so far.
+        {job?.status === "failed" ? " Partial observations survived the failed job." :
+          " Play or seek the video to see boxes; final safety evaluation is unavailable until completion."}
+      </p>}
+      {job?.failure_type && <p className="error" role="alert">Failure type: {job.failure_type}. See FastAPI traceback for the underlying cause.</p>}
       {error && <p className="error" role="alert">{error}</p>}
       {report && <>
         <div className="tracking-metrics"><div><strong>{report.track_count}</strong><small>Tracks</small></div><div><strong>{report.box_count}</strong><small>Observed boxes</small></div><div><strong>{report.gap_count}</strong><small>Occlusion / missing-frame gaps</small></div></div>

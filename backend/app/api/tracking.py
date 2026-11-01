@@ -5,6 +5,7 @@ from backend.app.services.tracking_jobs import (
     TrackingError,
     create_job,
     get_job,
+    get_preview,
     get_result,
     list_jobs,
     process_job,
@@ -39,6 +40,14 @@ def video_tracking_jobs(video_id: str):
 def tracking_status(job_id: str):
     try:
         return get_job(job_id)
+    except TrackingError as exc:
+        raise _bad(exc) from exc
+
+
+@router.get("/tracking-jobs/{job_id}/preview")
+def tracking_preview(job_id: str):
+    try:
+        return get_preview(job_id)
     except TrackingError as exc:
         raise _bad(exc) from exc
 
