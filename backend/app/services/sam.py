@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 from backend.app.config import META_BASE_URL, SAM_MODEL, model_key
 
 ALLOWED_EXTENSIONS = {".mp4": "video/mp4", ".mov": "video/quicktime"}
-MAX_BYTES = 25 * 1024 * 1024  # Day 1 cost/speed guard, not an advertised API limit
+MAX_BYTES = 100 * 1024 * 1024  # Day 1 cost/speed guard, not an advertised API limit
 
 
 def validate_video(path: Path) -> str:

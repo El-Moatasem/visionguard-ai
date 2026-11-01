@@ -74,7 +74,7 @@ export default function Home() {
         <div className="column">
           <section className="panel"><div className="section-heading"><div><span className="eyebrow">01 / INGEST</span><h2>Upload a video</h2></div><span className="pill">MP4 · MOV · WebM</span></div>
             <div className="dropzone" onClick={() => picker.current?.click()} role="button" tabIndex={0} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); picker.current?.click(); } }}>
-              <div className="upload-icon">↑</div><strong>{chosen ? chosen.name : "Select a short video"}</strong><span>{chosen ? `${(chosen.size / 1024 / 1024).toFixed(1)} MiB ready` : "Max 25 MiB · MP4, MOV or WebM"}</span>
+              <div className="upload-icon">↑</div><strong>{chosen ? chosen.name : "Select a short video"}</strong><span>{chosen ? `${(chosen.size / 1024 / 1024).toFixed(1)} MiB ready` : "Max 100 MiB · MP4, MOV or WebM"}</span>
             </div>
             <input ref={picker} type="file" accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" hidden onChange={onFileChange} aria-label="Select a video" />
             <input ref={phonePicker} type="file" accept="video/*" capture="environment" hidden onChange={onFileChange} aria-label="Record video with phone" />
