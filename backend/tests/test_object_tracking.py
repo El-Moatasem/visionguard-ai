@@ -100,9 +100,16 @@ def test_job_execution_mocked_end_to_end(tmp_path, monkeypatch):
     monkeypatch.setenv("MODEL_API_KEY", "not-a-real-key")
     uploaded = client.post("/api/v1/videos", files={"file": ("sample.mp4", BytesIO(b"\x00\x00\x00\x18ftypisom" + b"\x00" * 64), "video/mp4")})
     video_id = uploaded.json()["id"]
-    monkeypatch.setattr(tracking_jobs, "probe_video", lambda _path: {"available": True, "fps": 25.0, "duration_seconds": 4, "codec": "h264"})
-    async def fake_run_video(path, concepts, out):
+    monkeypatch.setattr(tracking_jobs, "probe_video", lambda _path: {"available": True, "width": 640, "height": 360, "fps": 25.0, "duration_seconds": 4, "codec": "h264"})
+    async def fake_run_video(path, concepts, out, *, progress_callback=None):
         assert set(concepts) == {"person", "forklift"}
+        if progress_callback is not None:
+            progress_callback({"phase": "streaming", "concept": "person", "revision": 3,
+                               "boxes": [box(0, 0), box(0, 2)],
+                               "message": "Streaming person boxes"})
+            progress_callback({"phase": "concept_completed", "concept": "person",
+                               "summary": summary("person", [box(0, 0), box(0, 2)]),
+                               "message": "Person completed"})
         return [summary("person", [box(0, 0), box(0, 2)]), summary("forklift", [box(0, 1)])]
     monkeypatch.setattr(tracking_jobs, "run_video", fake_run_video)
     with TestClient(app) as test_client:
@@ -116,6 +123,11 @@ def test_job_execution_mocked_end_to_end(tmp_path, monkeypatch):
     assert result["track_count"] == 2
     assert result["models"] == ["sam-3.1"]
     assert result["hazard_detection_implemented"] is False
+    preview = client.get(f"/api/v1/tracking-jobs/{job_id}/preview")
+    assert preview.status_code == 200
+    assert preview.json()["partial"] is True
+    assert preview.json()["box_count"] == 2
+    assert preview.json()["concepts_completed"] == ["person"]
 
 
 def test_webm_rejected_before_spending(tmp_path, monkeypatch):
@@ -147,3 +159,68 @@ def test_sam_media_dimensions_fallback_is_validated():
     rejected = build_tracking_report([{"concept": "person", "outcome": "completed", "boxes": [],
                                      "media": {"width": -1, "height": float("inf"), "fps": "unknown"}}])
     assert rejected["media_metadata"] == {}
+
+
+def test_preflight_requires_ffprobe_before_paid_request(tmp_path, monkeypatch):
+    monkeypatch.setenv("VIDEO_STORAGE_DIR", str(tmp_path))
+    monkeypatch.setenv("MODEL_API_KEY", "fake-key")
+    uploaded = client.post("/api/v1/videos", files={"file": (
+        "sample.mp4", BytesIO(b"\x00\x00\x00\x18ftypisom" + b"\x00"*64), "video/mp4")})
+    assert uploaded.status_code == 201
+    monkeypatch.setattr(tracking_jobs, "probe_video", lambda _: {"available": False})
+    response = client.post(f"/api/v1/videos/{uploaded.json()['id']}/tracking-jobs")
+    assert response.status_code == 503
+    assert "FFprobe" in response.json()["detail"]
+    assert client.get(f"/api/v1/videos/{uploaded.json()['id']}/tracking-jobs").json() == {"items": []}
+
+
+def test_preview_returns_404_if_no_observations(tmp_path, monkeypatch):
+    monkeypatch.setenv("VIDEO_STORAGE_DIR", str(tmp_path))
+    assert client.get("/api/v1/tracking-jobs/not-a-uuid/preview").status_code == 404
+    job_id = "62a2d3da-d07b-4a7b-9ec2-69e7b14db4c3"
+    path, _ = tracking_jobs._paths(job_id)
+    tracking_jobs._write(path, {"id": job_id, "status": "failed", "video_id": "a"*32})
+    assert client.get(f"/api/v1/tracking-jobs/{job_id}/preview").status_code == 404
+
+
+def test_preview_does_not_include_masks_or_invent_boxes():
+    output = tracking_jobs._safe_preview_boxes("person", [
+        {"object_id": "a", "frame": 2, "left": 10, "top": 20, "right": 100, "bottom": 120},
+        {"object_id": "a", "frame": 5, "left": 3, "top": 2, "right": 1, "bottom": 120},
+        {"object_id": "a", "frame": 3, "left": 10, "top": 20, "right": float("nan"), "bottom": 120},
+    ])
+    assert len(output) == 1
+    assert output[0]["frame"] == 2
+    assert output[0]["concept"] == "person"
+    assert "mask" not in output[0]
+
+
+def test_single_concept_live_preflight_option(tmp_path, monkeypatch):
+    monkeypatch.setenv("VIDEO_STORAGE_DIR", str(tmp_path))
+    monkeypatch.setenv("MODEL_API_KEY", "fake-key")
+    monkeypatch.setenv("SAM_DEMO_CONCEPTS", "person")
+    monkeypatch.setattr(tracking_jobs, "probe_video", lambda _: {
+        "available": True, "width": 640, "height": 480,
+        "fps": 12.0, "duration_seconds": 4, "codec": "h264"})
+    uploaded = client.post("/api/v1/videos", files={"file": (
+        "sample.mp4", BytesIO(b"\x00\x00\x00\x18ftypisom" + b"\x00"*64), "video/mp4")})
+    # Direct preflight only; do not start any background/billable jobs.
+    job = tracking_jobs.create_job(uploaded.json()["id"])
+    assert job["concepts"] == ["person"]
+    assert job["phase"] == "queued"
+    assert "preview" in job["preview_url"]
+    with tracking_jobs._LOCK:
+        tracking_jobs._ACTIVE.discard(job["id"])
+
+
+def test_reject_expensive_video_before_paid_job(tmp_path, monkeypatch):
+    monkeypatch.setenv("VIDEO_STORAGE_DIR", str(tmp_path))
+    monkeypatch.setenv("MODEL_API_KEY", "fake-key")
+    monkeypatch.setattr(tracking_jobs, "probe_video", lambda _: {
+        "available": True, "width": 3840, "height": 2160,
+        "fps": 60.0, "duration_seconds": 4, "codec": "h264"})
+    uploaded = client.post("/api/v1/videos", files={"file": (
+        "sample.mp4", BytesIO(b"\x00\x00\x00\x18ftypisom" + b"\x00"*64), "video/mp4")})
+    response = client.post(f"/api/v1/videos/{uploaded.json()['id']}/tracking-jobs")
+    assert response.status_code == 413
+    assert "1080p/30fps" in response.json()["detail"]

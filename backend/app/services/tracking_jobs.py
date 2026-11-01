@@ -8,6 +8,8 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import math
+import os
 import shutil
 import subprocess
 import threading
@@ -44,6 +46,11 @@ def _paths(job_id: str) -> tuple[Path, Path]:
         raise TrackingError("Invalid tracking job ID", 404) from exc
     root = tracking_dir()
     return root / f"{job_id}.json", root / f"{job_id}.result.json"
+
+
+def _preview_path(job_id: str) -> Path:
+    status, _ = _paths(job_id)
+    return status.with_name(f"{job_id}.preview.json")
 
 
 def _write(path: Path, data: dict[str, Any]) -> None:
@@ -89,7 +96,7 @@ def list_jobs(video_id: str) -> list[dict[str, Any]]:
         return []
     jobs = []
     for path in root.glob("*.json"):
-        if path.name.endswith(".result.json"):
+        if path.name.endswith((".result.json", ".preview.json")):
             continue
         try:
             record = get_job(path.stem)
@@ -137,11 +144,38 @@ def create_job(video_id: str) -> dict[str, Any]:
         raise TrackingError("MODEL_API_KEY not configured on the backend", 503)
     if not video["sam_compatible_container"]:
         raise TrackingError("SAM 3.1 accepts MP4/MOV, not WebM. Convert this clip locally first.", 415)
+    # Fail before creating a paid job when the SAM adapter would reject it.
+    from backend.app.services.sam import MAX_BYTES as SAM_MAX_BYTES
+    if video_path.stat().st_size > SAM_MAX_BYTES:
+        raise TrackingError(
+            f"Video is too large for SAM analysis ({SAM_MAX_BYTES // (1024 * 1024)} MiB). "
+            "Compress it for analysis; the upload/storage limit is separate.", 413)
     probe = probe_video(video_path)
-    if probe.get("available") and probe.get("codec") not in {"h264", "hevc", "mpeg4"}:
+    # Without verified FPS/dimensions, boxes cannot be aligned with playback or
+    # assessed using seconds-based rules. Avoid spending credits for unusable output.
+    if not probe.get("available") or not all(
+        isinstance(probe.get(key), (int, float))
+        and not isinstance(probe.get(key), bool)
+        and math.isfinite(probe[key]) and probe[key] > 0
+        for key in ("width", "height", "fps")
+    ):
+        raise TrackingError(
+            "FFprobe is required to determine video FPS and dimensions before "
+            "billable SAM analysis. Install FFmpeg (which includes ffprobe), "
+            "restart FastAPI, and retry.", 503)
+    short_side, long_side = sorted((probe["width"], probe["height"]))
+    if long_side > 1920 or short_side > 1080 or probe["fps"] > 30:
+        raise TrackingError("Use a clip at or below 1080p/30fps for this demo. "
+                            "Prepare the uploaded clip first (e.g. --height 480 --fps 12).", 413)
+    if probe.get("codec") not in {"h264", "hevc", "mpeg4"}:
         raise TrackingError("Unsupported video codec for SAM 3.1; use H.264, H.265, or MPEG-4.", 415)
     if probe.get("duration_seconds") is not None and probe["duration_seconds"] > 30:
         raise TrackingError("Use a clip up to 30 seconds for this demo to bound API usage.", 413)
+    # Use one concept for the first short live test, then enable both for the demo.
+    raw_concepts = os.getenv("SAM_DEMO_CONCEPTS", "person,forklift")
+    concepts = [name.strip().lower() for name in raw_concepts.split(",")]
+    if not concepts or any(name not in {"person", "forklift"} for name in concepts) or len(set(concepts)) != len(concepts):
+        raise TrackingError("SAM_DEMO_CONCEPTS must contain person and/or forklift once each", 500)
     job_id = str(uuid.uuid4())
     with _LOCK:
         if _ACTIVE:
@@ -149,7 +183,9 @@ def create_job(video_id: str) -> dict[str, Any]:
         _ACTIVE.add(job_id)
     record = {"id": job_id, "video_id": video_id, "status": "queued",
               "created_at": datetime.now(timezone.utc).isoformat(), "model": SAM_MODEL,
-              "concepts": ["person", "forklift"], "media_probe": probe,
+              "concepts": concepts, "media_probe": probe,
+              "phase": "queued", "concepts_completed": [],
+              "preview_url": f"/api/v1/tracking-jobs/{job_id}/preview",
               "message": "Waiting for SAM 3.1 processing; this request uses Meta credits.",
               "result_url": f"/api/v1/tracking-jobs/{job_id}/result"}
     try:
@@ -161,32 +197,109 @@ def create_job(video_id: str) -> dict[str, Any]:
     return record
 
 
-async def process_job(job_id: str) -> None:
-    """Run after FastAPI response. Not a robust distributed job queue."""
+def process_job(job_id: str) -> None:
+    """Worker-thread entry point: never block the ASGI event loop with SAM."""
+    asyncio.run(_process_job_async(job_id))
+
+
+def _safe_preview_boxes(concept: str, raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Strip remote data down to valid box observations (no masks, no interpolation)."""
+    valid = {}
+    for entry in raw:
+        try:
+            frame = entry["frame"]
+            vals = {key: float(entry[key]) for key in ("left", "top", "right", "bottom")}
+            object_id = str(entry["object_id"])
+            if not isinstance(frame, int) or isinstance(frame, bool) or frame < 0:
+                continue
+            if not object_id or len(object_id) > 80 or not all(math.isfinite(v) for v in vals.values()):
+                continue
+            if vals["right"] <= vals["left"] or vals["bottom"] <= vals["top"]:
+                continue
+            track_id = f"{concept}:{object_id}"
+            valid[(track_id, frame)] = {"track_id": track_id, "fragment_id": f"{track_id}#preview",
+                                        "concept": concept, "frame": frame, "box": vals}
+        except (KeyError, ValueError, TypeError):
+            continue
+    return list(valid.values())
+
+
+def get_preview(job_id: str) -> dict[str, Any]:
+    get_job(job_id)  # Verify job exists and handle interrupted states.
+    path = _preview_path(job_id)
+    if not path.is_file():
+        raise TrackingError("Tracking preview is not available yet", 404)
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise TrackingError("Tracking preview unavailable", 500) from exc
+
+
+async def _process_job_async(job_id: str) -> None:
+    """Run the billable request off the ASGI loop and publish partial observations."""
+    completed: dict[str, dict[str, Any]] = {}
+    streamed: dict[str, list[dict[str, Any]]] = {}
     try:
         record = _read_record(job_id)
         video_path, _ = get_video_file(record["video_id"])
         record["status"] = "running"
+        record["phase"] = "uploading"
         record["message"] = "Sending authorized clip to Meta SAM 3.1."
         _write(_paths(job_id)[0], record)
-        summaries = await run_video(video_path, record["concepts"], tracking_dir() / job_id / "raw")
-        report = build_tracking_report(summaries, record["media_probe"])
+
+        def on_progress(event: dict[str, Any]) -> None:
+            phase = str(event["phase"])
+            concept = event.get("concept")
+            if phase == "streaming" and concept in record["concepts"]:
+                streamed[concept] = _safe_preview_boxes(concept, event.get("boxes", []))
+            if phase == "concept_completed" and concept in record["concepts"]:
+                completed[concept] = event["summary"]
+                streamed[concept] = _safe_preview_boxes(concept, event["summary"].get("boxes", []))
+            if phase in {"streaming", "concept_completed"}:
+                boxes = [item for part in record["concepts"] for item in streamed.get(part, [])]
+                if boxes:
+                    preview = {"job_id": job_id, "schema_version": 1,
+                               "partial": True, "status": "preview", "time_alignment": "approximate",
+                               "media_probe": record["media_probe"], "media_metadata": {},
+                               "boxes": boxes, "box_count": len(boxes),
+                               "track_count": len({item["track_id"] for item in boxes}),
+                               "gap_count": 0, "gaps": [], "tracks": [],
+                               "concepts_completed": list(completed),
+                               "note": "Streaming observations are provisional and cannot be used for final safety conclusions."}
+                    _write(_preview_path(job_id), preview)
+            record["phase"] = phase
+            record["message"] = str(event.get("message", "SAM analysis in progress"))
+            record["concepts_completed"] = list(completed)
+            if "revision" in event:
+                record["revision"] = event["revision"]
+            _write(_paths(job_id)[0], record)
+
+        summaries = await run_video(video_path, record["concepts"],
+                                    tracking_dir() / job_id / "raw",
+                                    progress_callback=on_progress)
+        record["phase"] = "building_report"
+        record["message"] = "Preparing final tracked observations and uncertainty gaps."
+        _write(_paths(job_id)[0], record)
+        report = await asyncio.to_thread(build_tracking_report, summaries, record["media_probe"])
         report["job_id"] = job_id
         report["video_id"] = record["video_id"]
         _write(_paths(job_id)[1], report)
         record["status"] = "completed"
+        record["phase"] = "completed"
         record["message"] = "SAM analysis completed; review tracks and occlusion gaps. No danger classification yet."
         record["completed_at"] = datetime.now(timezone.utc).isoformat()
         record["track_count"] = report["track_count"]
         record["gap_count"] = report["gap_count"]
         _write(_paths(job_id)[0], record)
-    except Exception:
+    except Exception as exc:
         logger.exception("SAM job %s failed", job_id)
         try:
             record = _read_record(job_id)
             record["status"] = "failed"
-            # Do not return raw remote exception details or request data to the browser.
-            record["message"] = "Tracking failed. Check server logs and Meta account access; no result was generated."
+            record["phase"] = "failed"
+            record["failure_type"] = type(exc).__name__  # No raw exception text or credentials.
+            record["message"] = (f"Tracking failed ({type(exc).__name__}); check backend logs. "
+                                 "Partial observations may be available, but no final result was generated.")
             _write(_paths(job_id)[0], record)
         except Exception:
             logger.exception("Could not persist failed job state")

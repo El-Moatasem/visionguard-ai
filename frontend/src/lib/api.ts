@@ -47,6 +47,10 @@ export type TrackingJob = {
   status: "queued" | "running" | "completed" | "failed" | "interrupted";
   model: string;
   concepts: string[];
+  phase?: string;
+  revision?: number;
+  failure_type?: string;
+  concepts_completed?: string[];
   created_at: string;
   message: string;
   result_url: string;
@@ -70,6 +74,8 @@ export type TrackingTrack = {
 };
 export type TrackingReport = {
   schema_version: number;
+  partial?: boolean;
+  concepts_completed?: string[];
   box_count: number;
   track_count: number;
   gap_count: number;
@@ -80,6 +86,12 @@ export type TrackingReport = {
   boxes: TrackingBox[];
   gaps: { track_id: string; after_frame: number; before_frame: number; missing_frames: number; identity_continuity: string }[];
 };
+export async function fetchTrackingPreview(jobId: string): Promise<TrackingReport | null> {
+  const response = await fetch(`${API}/tracking-jobs/${encodeURIComponent(jobId)}/preview`, { cache: "no-store" });
+  if (response.status === 404) return null; // No streamed boxes yet, not an error.
+  return readResponse<TrackingReport>(response);
+}
+
 export async function startTracking(videoId: string): Promise<TrackingJob> {
   return readResponse<TrackingJob>(await fetch(`${API}/videos/${encodeURIComponent(videoId)}/tracking-jobs`, {method: "POST"}));
 }
