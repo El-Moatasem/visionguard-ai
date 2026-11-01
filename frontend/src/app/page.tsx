@@ -17,14 +17,20 @@ export default function Home() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [libraryLoading, setLibraryLoading] = useState(true);
+  const [libraryError, setLibraryError] = useState("");
 
   const reload = useCallback(async () => {
+    setLibraryLoading(true);
+    setLibraryError("");
     try {
       const items = await fetchVideos();
       setVideos(items);
       setSelected((current) => items.find((v) => v.id === current?.id) ?? items[0] ?? null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Video list unavailable");
+      setLibraryError(err instanceof Error ? err.message : "Video list unavailable");
+    } finally {
+      setLibraryLoading(false);
     }
   }, []);
 
@@ -34,7 +40,7 @@ export default function Home() {
     if (!file) return;
     setError("");setMessage("");
     if (file.size > MAX_BYTES) {
-      setError("Choose a video under 25 MiB. Trim or compress it first.");
+      setError("Choose a video under 100 MiB. Trim or compress it first.");
       setChosen(null);return;
     }
     setChosen(file);
@@ -84,10 +90,48 @@ export default function Home() {
           <CameraCapture onCaptured={chooseFile} />
         </div>
         <section className="panel library-panel"><div className="section-heading"><div><span className="eyebrow">02 / REVIEW</span><h2>Video workspace</h2></div><button className="small-link" type="button" onClick={() => void reload()}>Refresh</button></div>
-          <div className="player-wrap">{selected ? <TrackingViewer key={selected.id} video={selected} /> : <div className="empty-player"><span>▶</span><p>No videos uploaded yet</p></div>}</div>
+          <div className="player-wrap">
+            {selected ? (
+              <TrackingViewer key={selected.id} video={selected} />
+            ) : (
+              <div className="video-empty-state" aria-live="polite">
+                {libraryLoading ? (
+                  <>
+                    <span className="video-empty-icon" aria-hidden="true">◌</span>
+                    <h3>Loading video library…</h3>
+                  </>
+                ) : libraryError ? (
+                  <>
+                    <span className="video-empty-icon" aria-hidden="true">!</span>
+                    <h3>Could not load your videos</h3>
+                    <p>{libraryError}</p>
+                    <button className="button button-secondary" type="button" onClick={() => void reload()}>
+                      Retry loading
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span className="video-empty-icon" aria-hidden="true">▶</span>
+                    <h3>No videos uploaded yet</h3>
+                    <p>Upload or record an authorized clip to track people and forklifts with Meta SAM 3.1.</p>
+                    <div className="video-empty-actions">
+                      <button className="button button-primary" type="button" onClick={() => picker.current?.click()}>
+                        Choose video
+                      </button>
+                      <Link className="button button-secondary evidence-link" href="/replay">
+                        Explore sample replay
+                      </Link>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
           {selected && <div className="video-detail"><strong>{selected.name}</strong><span>{(selected.size_bytes / 1024 / 1024).toFixed(1)} MiB · {selected.media_type}</span><span className={selected.sam_compatible_container ? "tag tag-green" : "tag tag-amber"}>{selected.sam_compatible_container ? "MP4/MOV container" : "WebM • convert before SAM"}</span></div>}
-          <div className="library-heading"><span>RECENT UPLOADS</span><span>{videos.length} item(s)</span></div>
-          <div className="video-list">{videos.length ? videos.map(v => <button type="button" key={v.id} className={`video-row ${selected?.id === v.id ? "is-selected" : ""}`} onClick={() => setSelected(v)}><span className="video-thumb">▶</span><span className="video-info"><strong>{v.name}</strong><small>{new Date(v.created_at).toLocaleString()} · {(v.size_bytes / 1024 / 1024).toFixed(1)} MiB</small></span></button>) : <p className="helper">Uploaded videos will appear here.</p>}</div>
+          {videos.length > 0 && <>
+            <div className="library-heading"><span>RECENT UPLOADS</span><span>{videos.length} item(s)</span></div>
+            <div className="video-list">{videos.map(v => <button type="button" key={v.id} className={`video-row ${selected?.id === v.id ? "is-selected" : ""}`} onClick={() => setSelected(v)}><span className="video-thumb">▶</span><span className="video-info"><strong>{v.name}</strong><small>{new Date(v.created_at).toLocaleString()} · {(v.size_bytes / 1024 / 1024).toFixed(1)} MiB</small></span></button>)}</div>
+          </>}
         </section>
       </div>
       {(message || error) && <div className={error ? "toast toast-error" : "toast"} role={error ? "alert" : "status"}>{error || message}</div>}
