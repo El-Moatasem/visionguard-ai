@@ -6,7 +6,7 @@ import CameraCapture from "@/components/CameraCapture";
 import TrackingViewer from "@/components/TrackingViewer";
 import { fetchVideos, uploadVideo, type VideoItem } from "@/lib/api";
 
-const MAX_BYTES = 25 * 1024 * 1024;
+const MAX_BYTES = 100 * 1024 * 1024;
 
 export default function Home() {
   const picker = useRef<HTMLInputElement>(null);
