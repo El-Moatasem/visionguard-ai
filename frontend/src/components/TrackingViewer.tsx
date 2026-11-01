@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import SafetyRulePanel from "@/components/SafetyRulePanel";
 import EvidenceDashboard from "@/components/EvidenceDashboard";
 import {
   fetchTrackingJob, fetchTrackingJobs, fetchTrackingResult, playbackUrl,
-  startTracking, type TrackingJob, type TrackingReport, type VideoItem, type SafetyZone, type RuleSpec,
+  startTracking, type TrackingJob, type TrackingReport, type TrackingBox, type VideoItem, type SafetyZone, type RuleSpec,
 } from "@/lib/api";
 
 const PALETTE: Record<string, string> = { person: "#45d9b7", forklift: "#f5bb77" };
@@ -43,7 +43,7 @@ export default function TrackingViewer({ video }: { video: VideoItem }) {
     if (!job || !["queued", "running"].includes(job.status)) return;
     let current = true;
     const tick = () => { void fetchTrackingJob(job.id).then((fresh) => {
-      if (current) setJob(fresh);
+      if (current) { setJob(fresh); setError(""); }
     }).catch((err: unknown) => {
       if (current) setError(err instanceof Error ? err.message : "Could not poll tracking job");
     }); };
@@ -62,6 +62,25 @@ export default function TrackingViewer({ video }: { video: VideoItem }) {
     });
     return () => { current = false; };
   }, [job?.id, job?.status]);
+
+  // Use actual decoded video-frame timing when the browser supports it. The
+  // onTimeUpdate handler below remains a fallback for older browsers.
+  useEffect(() => {
+    const player = element.current;
+    if (!player || !player.requestVideoFrameCallback) return;
+    let cancelled = false;
+    let requestId = 0;
+    const onFrame = (_now: number, metadata: VideoFrameCallbackMetadata) => {
+      if (cancelled) return;
+      setSeconds(metadata.mediaTime);
+      requestId = player.requestVideoFrameCallback(onFrame);
+    };
+    requestId = player.requestVideoFrameCallback(onFrame);
+    return () => {
+      cancelled = true;
+      player.cancelVideoFrameCallback?.(requestId);
+    };
+  }, [video.id]);
 
   async function analyze() {
     setSubmitting(true);
@@ -104,10 +123,23 @@ export default function TrackingViewer({ video }: { video: VideoItem }) {
     setDrawStart(null);setDrawCurrent(null);
   }
 
+  // Pre-index observations to avoid scanning every box on every video frame.
+  // Missing frames intentionally have no overlay; do not invent/interpolate.
+  const boxesByFrame = useMemo(() => {
+    const index = new Map<number, TrackingBox[]>();
+    for (const box of report?.boxes ?? []) {
+      const items = index.get(box.frame) ?? [];
+      items.push(box);
+      index.set(box.frame, items);
+    }
+    return index;
+  }, [report]);
   const fps = report?.media_probe.fps ?? report?.media_metadata?.fps;
   const frame = fps ? Math.round(seconds * fps) : null;
-  const overlays = frame === null ? [] : (report?.boxes ?? []).filter((box) => box.frame === frame);
+  const overlays = frame === null ? [] : boxesByFrame.get(frame) ?? [];
   const showOverlay = Boolean(report && frame !== null && dimensions.width && dimensions.height);
+  const samMaxBytes = 25 * 1024 * 1024;
+  const tooLargeForSam = video.size_bytes > samMaxBytes;
   const busy = submitting || job?.status === "running" || job?.status === "queued";
 
   return <div className="tracking-viewer">
@@ -141,9 +173,10 @@ export default function TrackingViewer({ video }: { video: VideoItem }) {
       <div className="tracking-tools-header"><div><span className="eyebrow">03 / VISUAL TRACKING</span><h3>Meta SAM 3.1 analysis</h3></div>
       <span className={`tracking-state ${job?.status === "completed" ? "is-ok" : ""}`}>{job?.status ?? "Not analyzed"}</span></div>
       <p className="helper">Analyze this clip for <strong>people</strong> and <strong>forklifts</strong>. This sends authorized footage to Meta and consumes API credits. Not real-time monitoring or certified danger detection.</p>
-      <button type="button" className="button button-primary" disabled={busy || !video.sam_compatible_container}
+      <button type="button" className="button button-primary" disabled={busy || !video.sam_compatible_container || tooLargeForSam}
         onClick={() => void analyze()}>{busy ? "Analyzing…" : job?.status === "completed" ? "Run fresh analysis (billable)" : "Analyze with SAM (billable)"}</button>
       {!video.sam_compatible_container && <p className="error">WebM is not supported by SAM. Convert to H.264 MP4 first.</p>}
+      {tooLargeForSam && <p className="error">This video exceeds the 25 MiB SAM analysis limit. Uploads may be up to 100 MiB, but clips must be compressed before inference.</p>}
       {job && <p className="helper" role="status">{job.message}</p>}
       {error && <p className="error" role="alert">{error}</p>}
       {report && <>

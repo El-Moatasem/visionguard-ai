@@ -137,6 +137,12 @@ def create_job(video_id: str) -> dict[str, Any]:
         raise TrackingError("MODEL_API_KEY not configured on the backend", 503)
     if not video["sam_compatible_container"]:
         raise TrackingError("SAM 3.1 accepts MP4/MOV, not WebM. Convert this clip locally first.", 415)
+    # Fail before creating a paid job when the SAM adapter would reject it.
+    from backend.app.services.sam import MAX_BYTES as SAM_MAX_BYTES
+    if video_path.stat().st_size > SAM_MAX_BYTES:
+        raise TrackingError(
+            f"Video is too large for SAM analysis ({SAM_MAX_BYTES // (1024 * 1024)} MiB). "
+            "Compress it for analysis; the upload/storage limit is separate.", 413)
     probe = probe_video(video_path)
     if probe.get("available") and probe.get("codec") not in {"h264", "hevc", "mpeg4"}:
         raise TrackingError("Unsupported video codec for SAM 3.1; use H.264, H.265, or MPEG-4.", 415)
@@ -161,8 +167,13 @@ def create_job(video_id: str) -> dict[str, Any]:
     return record
 
 
-async def process_job(job_id: str) -> None:
-    """Run after FastAPI response. Not a robust distributed job queue."""
+def process_job(job_id: str) -> None:
+    """Worker-thread entry point: never block the ASGI event loop with SAM."""
+    asyncio.run(_process_job_async(job_id))
+
+
+async def _process_job_async(job_id: str) -> None:
+    """Run after FastAPI response. Not a durable distributed job queue."""
     try:
         record = _read_record(job_id)
         video_path, _ = get_video_file(record["video_id"])
