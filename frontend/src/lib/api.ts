@@ -44,6 +44,22 @@ export async function prepareVideoForSam(videoId: string, startSeconds: number, 
   }));
 }
 
+export type DeleteVideosResult = {
+  deleted_videos: number;
+  deleted_jobs: number;
+  deleted_evidence: number;
+  message: string;
+};
+export async function deleteVideo(videoId: string): Promise<DeleteVideosResult> {
+  return readResponse<DeleteVideosResult>(await fetch(`${API}/videos/${encodeURIComponent(videoId)}`, {method: "DELETE"}));
+}
+export async function deleteAllVideos(): Promise<DeleteVideosResult> {
+  return readResponse<DeleteVideosResult>(await fetch(`${API}/videos/delete-all`, {
+    method: "POST", headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({confirm: "DELETE ALL VIDEOS"}),
+  }));
+}
+
 export async function fetchVideos(): Promise<VideoItem[]> {
   const data = await readResponse<{ items: VideoItem[] }>(
     await fetch(`${API}/videos`, { cache: "no-store" })

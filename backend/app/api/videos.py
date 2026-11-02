@@ -1,5 +1,6 @@
 """Local demo endpoints: video ingestion, listing, metadata and browser playback."""
 from typing import Annotated
+from pydantic import BaseModel
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from backend.app.services.demo_catalog import get_scenario
@@ -12,6 +13,8 @@ from backend.app.services.video_store import (
     read_video,
     save_video,
 )
+
+from backend.app.services.library_deletion import delete_library
 
 router = APIRouter(prefix="/api/v1/videos", tags=["videos"])
 
@@ -52,3 +55,23 @@ def stream_video(video_id: str):
         )
     except VideoUploadError as error:
         raise HTTPException(status_code=error.status_code, detail=error.message) from error
+
+
+class DeleteAllRequest(BaseModel):
+    confirm: str
+
+
+@router.post("/delete-all")
+def delete_all_videos(payload: DeleteAllRequest):
+    try:
+        return delete_library(confirm_all=payload.confirm)
+    except VideoUploadError as error:
+        raise HTTPException(error.status_code, error.message) from error
+
+
+@router.delete("/{video_id}")
+def delete_single_video(video_id: str):
+    try:
+        return delete_library(video_id)
+    except VideoUploadError as error:
+        raise HTTPException(error.status_code, error.message) from error

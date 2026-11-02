@@ -54,10 +54,10 @@ def _encode(src: Path, dst: Path, start: float, duration: float) -> None:
         cmd = [
             exe, "-hide_banner", "-nostdin", "-y", "-v", "error",
             "-ss", f"{start:.3f}", "-i", str(src), "-t", f"{duration:.3f}",
-            "-map", "0:v:0", "-map", "0:a:0?",
+            "-map", "0:v:0", "-an",
             "-vf", f"fps={fps},scale=854:{height}:force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1",
             "-c:v", "libx264", "-preset", "veryfast", "-crf", str(crf),
-            "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "96k",
+            "-pix_fmt", "yuv420p",
             "-movflags", "+faststart", "-fps_mode", "cfr",
             str(dst),
         ]
