@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from openai import AsyncOpenAI
 
 from backend.app.config import META_BASE_URL, SAM_MODEL, model_key
+from backend.app.services.sceneops_concepts import concept_prompt, normalize_concept
 
 ALLOWED_EXTENSIONS = {".mp4": "video/mp4", ".mov": "video/quicktime"}
 MAX_BYTES = 25 * 1024 * 1024  # Day 1 cost/speed guard, not an advertised API limit
@@ -45,7 +46,7 @@ def validate_concept(concept: str) -> str:
 
 
 def response_input(concept: str, file_id: str) -> list[dict[str, Any]]:
-    phrase = validate_concept(concept)
+    phrase = validate_concept(concept_prompt(concept))
     if not file_id.startswith("file-"):
         raise ValueError("Expected a valid uploaded file ID, beginning with 'file-'.")
     return [{"type": "message", "role": "user", "content": [
@@ -207,7 +208,7 @@ async def run_video(path: Path, concepts: list[str], output: Path,
         validate_video(path)
     if not concepts:
         raise ValueError("At least one --concept is required")
-    concepts = [validate_concept(c) for c in concepts]
+    concepts = [normalize_concept(c) for c in concepts]
     if len(set(concepts)) != len(concepts):
         raise ValueError("Repeat concepts are not supported")
     if concurrent is None:

@@ -23,6 +23,7 @@ from backend.app.config import SAM_MODEL, api_configured
 from backend.app.services.sam import run_video
 from backend.app.services.tracking_report import build_tracking_report
 from backend.app.services.video_store import VideoUploadError, get_video_file, storage_dir
+from backend.app.services.sceneops_concepts import normalize_concept
 
 logger = logging.getLogger(__name__)
 _LOCK = threading.Lock()
@@ -107,13 +108,35 @@ def list_jobs(video_id: str) -> list[dict[str, Any]]:
     return sorted(jobs, key=lambda j: j["created_at"], reverse=True)[:10]
 
 
+def _ffprobe_executable() -> str | None:
+    """Locate ffprobe even if FastAPI starts without a macOS package-manager PATH.
+
+    FFPROBE_BIN is an optional explicit override. A resolved program is still
+    required; missing or unreadable media must never bypass paid-job preflight.
+    """
+    explicit = os.getenv("FFPROBE_BIN", "").strip()
+    candidates = ([explicit] if explicit else []) + [
+        "/opt/local/bin/ffprobe",       # MacPorts
+        "/opt/homebrew/bin/ffprobe",    # Homebrew on Apple Silicon
+        "/usr/local/bin/ffprobe",      # Homebrew on Intel
+    ]
+    discovered = shutil.which("ffprobe")
+    if discovered:
+        candidates.append(discovered)
+    for candidate in candidates:
+        if candidate and Path(candidate).is_file() and os.access(candidate, os.X_OK):
+            return candidate
+    return None
+
+
 def probe_video(path: Path) -> dict[str, Any]:
     """Optional ffprobe. Times are approximate; never a frame-perfect guarantee."""
-    if not shutil.which("ffprobe"):
+    executable = _ffprobe_executable()
+    if executable is None:
         return {"available": False, "warning": "ffprobe is not installed; video duration and FPS unavailable"}
     try:
         proc = subprocess.run(
-            ["ffprobe", "-v", "error", "-select_streams", "v:0",
+            [executable, "-v", "error", "-select_streams", "v:0",
              "-show_entries", "stream=width,height,avg_frame_rate,r_frame_rate,codec_name,duration:format=duration",
              "-of", "json", str(path)],
             capture_output=True, text=True, timeout=15, check=True,
@@ -135,7 +158,7 @@ def probe_video(path: Path) -> dict[str, Any]:
         return {"available": False, "warning": "Could not inspect input video"}
 
 
-def create_job(video_id: str) -> dict[str, Any]:
+def create_job(video_id: str, requested_concepts: list[str] | None = None) -> dict[str, Any]:
     try:
         video_path, video = get_video_file(video_id)
     except VideoUploadError as exc:
@@ -160,9 +183,10 @@ def create_job(video_id: str) -> dict[str, Any]:
         for key in ("width", "height", "fps")
     ):
         raise TrackingError(
-            "FFprobe is required to determine video FPS and dimensions before "
-            "billable SAM analysis. Install FFmpeg (which includes ffprobe), "
-            "restart FastAPI, and retry.", 503)
+            "Video preflight could not read positive FPS and dimensions. "
+            f"FFprobe diagnostic: {probe.get('warning', 'missing required metadata')}. "
+            "Set FFPROBE_BIN to an installed ffprobe executable, restart FastAPI, "
+            "and verify that the video has a readable frame rate and dimensions.", 503)
     short_side, long_side = sorted((probe["width"], probe["height"]))
     if long_side > 1920 or short_side > 1080 or probe["fps"] > 30:
         raise TrackingError("Use a clip at or below 1080p/30fps for this demo. "
@@ -172,10 +196,16 @@ def create_job(video_id: str) -> dict[str, Any]:
     if probe.get("duration_seconds") is not None and probe["duration_seconds"] > 30:
         raise TrackingError("Use a clip up to 30 seconds for this demo to bound API usage.", 413)
     # Use one concept for the first short live test, then enable both for the demo.
-    raw_concepts = os.getenv("SAM_DEMO_CONCEPTS", "person,forklift")
-    concepts = [name.strip().lower() for name in raw_concepts.split(",")]
-    if not concepts or any(name not in {"person", "forklift"} for name in concepts) or len(set(concepts)) != len(concepts):
-        raise TrackingError("SAM_DEMO_CONCEPTS must contain person and/or forklift once each", 500)
+    # An explicit environment override is useful for controlled debugging.
+    # Otherwise, the prepared demo's concepts select the model prompts.
+    override = os.getenv("SAM_DEMO_CONCEPTS", "").strip()
+    requested = requested_concepts if requested_concepts is not None else (override.split(",") if override else video.get("suggested_concepts") or ["person", "forklift"])
+    try:
+        concepts = [normalize_concept(str(name)) for name in requested]
+    except ValueError as exc:
+        raise TrackingError("Unsupported concept in SAM_DEMO_CONCEPTS or demo metadata", 422) from exc
+    if not 1 <= len(concepts) <= 3 or len(set(concepts)) != len(concepts):
+        raise TrackingError("Select 1–3 unique supported SAM concepts", 422)
     job_id = str(uuid.uuid4())
     with _LOCK:
         if _ACTIVE:
@@ -183,7 +213,7 @@ def create_job(video_id: str) -> dict[str, Any]:
         _ACTIVE.add(job_id)
     record = {"id": job_id, "video_id": video_id, "status": "queued",
               "created_at": datetime.now(timezone.utc).isoformat(), "model": SAM_MODEL,
-              "concepts": concepts, "media_probe": probe,
+              "concepts": concepts, "scenario_id": video.get("scenario_id"), "media_probe": probe,
               "phase": "queued", "concepts_completed": [],
               "preview_url": f"/api/v1/tracking-jobs/{job_id}/preview",
               "message": "Waiting for SAM 3.1 processing; this request uses Meta credits.",

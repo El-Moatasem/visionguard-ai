@@ -9,6 +9,8 @@ from __future__ import annotations
 import math
 from collections import defaultdict
 from typing import Any
+from backend.app.services.sceneops_concepts import normalize_concept
+from backend.app.services.sceneops_concepts import normalize_concept
 
 
 class TrackingReportError(ValueError):
@@ -50,8 +52,10 @@ def build_tracking_report(summaries: list[dict[str, Any]], media_probe: dict[str
         if summary.get("outcome") != "completed":
             raise TrackingReportError("SAM analysis is incomplete")
         concept = str(summary.get("concept", "")).strip().lower()
-        if concept not in {"person", "forklift"}:
-            raise TrackingReportError("Only person and forklift concepts are supported by this milestone")
+        try:
+            concept = normalize_concept(concept)
+        except ValueError as exc:
+            raise TrackingReportError("Unsupported SceneOps concept") from exc
         counts[concept] += 1
         if counts[concept] > 1:
             raise TrackingReportError("Duplicate concept summary")

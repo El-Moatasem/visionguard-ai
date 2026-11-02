@@ -8,6 +8,8 @@ from backend.app.api.tracking import router as tracking_router
 from backend.app.api.safety import router as safety_router
 from backend.app.api.evidence import router as evidence_router
 from backend.app.api.replay import router as replay_router
+from backend.app.api.demo_catalog import router as demo_router
+from backend.app.api.demo_catalog import router as demo_router
 from backend.app.config import MUSE_MODEL, SAM_MODEL, api_configured
 
 app = FastAPI(
@@ -32,6 +34,8 @@ if not REPLAY_ONLY:
     app.include_router(safety_router)
     app.include_router(evidence_router)
 app.include_router(replay_router)
+app.include_router(demo_router)
+app.include_router(demo_router)
 
 
 @app.get("/health")

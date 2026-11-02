@@ -1,0 +1,552 @@
+{
+  "id": "parking-car-dwell",
+  "title": "Parking: vehicle in loading zone (synthetic)",
+  "description": "Track cars and flag continuous observed occupancy inside a reviewer-marked loading area. Synthetic coordinates ONLY; not SAM outputs.",
+  "provenance": "synthetic_fixture",
+  "live_inference": false,
+  "video_asset_included": false,
+  "camera_feed": false,
+  "rights": "Original hand-authored numeric geometry; no third-party video or actual SAM output.",
+  "default_rule": {
+    "name": "Parking: vehicle in loading zone",
+    "rule_type": "object_in_zone",
+    "concept": "car",
+    "zone": {
+      "name": "Reviewer-marked example zone",
+      "x_min": 0.15,
+      "y_min": 0.25,
+      "x_max": 0.85,
+      "y_max": 0.85
+    },
+    "min_duration_seconds": 2.0,
+    "max_observation_gap_frames": 2
+  },
+  "tracking_report": {
+    "schema_version": 1,
+    "media_metadata": {},
+    "models": [
+      "sam-3.1"
+    ],
+    "concepts_requested": [
+      "car"
+    ],
+    "media_probe": {
+      "available": true,
+      "width": 640,
+      "height": 360,
+      "fps": 10,
+      "duration_seconds": 4,
+      "codec": "h264"
+    },
+    "frame_time_note": "frame/fps is only an approximation for constant-frame-rate source video; verify synchronization before using timestamps as evidence",
+    "time_alignment": "approximate",
+    "box_count": 40,
+    "track_count": 1,
+    "gap_count": 0,
+    "tracks": [
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "observed_frames": 40,
+        "first_frame": 0,
+        "last_frame": 39,
+        "fragment_count": 1,
+        "has_uncertain_identity_continuity": false,
+        "fragments": [
+          {
+            "fragment_id": "car:sample-1#0",
+            "start_frame": 0,
+            "end_frame": 39
+          }
+        ]
+      }
+    ],
+    "gaps": [],
+    "fragment_gap_tolerance_frames": 2,
+    "boxes": [
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 0,
+        "box": {
+          "left": 70.0,
+          "top": 155.0,
+          "right": 140.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 1,
+        "box": {
+          "left": 100.0,
+          "top": 155.0,
+          "right": 170.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 2,
+        "box": {
+          "left": 130.0,
+          "top": 155.0,
+          "right": 200.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 3,
+        "box": {
+          "left": 160.0,
+          "top": 155.0,
+          "right": 230.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 4,
+        "box": {
+          "left": 190.0,
+          "top": 155.0,
+          "right": 260.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 5,
+        "box": {
+          "left": 220.0,
+          "top": 155.0,
+          "right": 290.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 6,
+        "box": {
+          "left": 250.0,
+          "top": 155.0,
+          "right": 320.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 7,
+        "box": {
+          "left": 280.0,
+          "top": 155.0,
+          "right": 350.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 8,
+        "box": {
+          "left": 280.0,
+          "top": 155.0,
+          "right": 350.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 9,
+        "box": {
+          "left": 280.0,
+          "top": 155.0,
+          "right": 350.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 10,
+        "box": {
+          "left": 280.0,
+          "top": 155.0,
+          "right": 350.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 11,
+        "box": {
+          "left": 280.0,
+          "top": 155.0,
+          "right": 350.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 12,
+        "box": {
+          "left": 280.0,
+          "top": 155.0,
+          "right": 350.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 13,
+        "box": {
+          "left": 280.0,
+          "top": 155.0,
+          "right": 350.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 14,
+        "box": {
+          "left": 280.0,
+          "top": 155.0,
+          "right": 350.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 15,
+        "box": {
+          "left": 280.0,
+          "top": 155.0,
+          "right": 350.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 16,
+        "box": {
+          "left": 280.0,
+          "top": 155.0,
+          "right": 350.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 17,
+        "box": {
+          "left": 280.0,
+          "top": 155.0,
+          "right": 350.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 18,
+        "box": {
+          "left": 280.0,
+          "top": 155.0,
+          "right": 350.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 19,
+        "box": {
+          "left": 280.0,
+          "top": 155.0,
+          "right": 350.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 20,
+        "box": {
+          "left": 280.0,
+          "top": 155.0,
+          "right": 350.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 21,
+        "box": {
+          "left": 280.0,
+          "top": 155.0,
+          "right": 350.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 22,
+        "box": {
+          "left": 280.0,
+          "top": 155.0,
+          "right": 350.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 23,
+        "box": {
+          "left": 280.0,
+          "top": 155.0,
+          "right": 350.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 24,
+        "box": {
+          "left": 280.0,
+          "top": 155.0,
+          "right": 350.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 25,
+        "box": {
+          "left": 280.0,
+          "top": 155.0,
+          "right": 350.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 26,
+        "box": {
+          "left": 280.0,
+          "top": 155.0,
+          "right": 350.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 27,
+        "box": {
+          "left": 280.0,
+          "top": 155.0,
+          "right": 350.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 28,
+        "box": {
+          "left": 280.0,
+          "top": 155.0,
+          "right": 350.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 29,
+        "box": {
+          "left": 280.0,
+          "top": 155.0,
+          "right": 350.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 30,
+        "box": {
+          "left": 280.0,
+          "top": 155.0,
+          "right": 350.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 31,
+        "box": {
+          "left": 280.0,
+          "top": 155.0,
+          "right": 350.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 32,
+        "box": {
+          "left": 280.0,
+          "top": 155.0,
+          "right": 350.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 33,
+        "box": {
+          "left": 280.0,
+          "top": 155.0,
+          "right": 350.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 34,
+        "box": {
+          "left": 280.0,
+          "top": 155.0,
+          "right": 350.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 35,
+        "box": {
+          "left": 280.0,
+          "top": 155.0,
+          "right": 350.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 36,
+        "box": {
+          "left": 280.0,
+          "top": 155.0,
+          "right": 350.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 37,
+        "box": {
+          "left": 280.0,
+          "top": 155.0,
+          "right": 350.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 38,
+        "box": {
+          "left": 280.0,
+          "top": 155.0,
+          "right": 350.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      },
+      {
+        "track_id": "car:sample-1",
+        "concept": "car",
+        "frame": 39,
+        "box": {
+          "left": 280.0,
+          "top": 155.0,
+          "right": 350.0,
+          "bottom": 205.0
+        },
+        "fragment_id": "car:sample-1#0"
+      }
+    ],
+    "hazard_detection_implemented": false,
+    "identity_policy": "Do not interpolate missing frames, auto-reidentify across gaps, or treat SAM IDs as continuous after full occlusion."
+  },
+  "visualization": "Rectangles and zone in browser, no actual video"
+}

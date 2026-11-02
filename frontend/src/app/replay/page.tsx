@@ -27,7 +27,10 @@ export default function ReplayPage() {
     finally {setBusy(false);}
   }, []);
   useEffect(() => {void fetchReplayScenarios().then(items=>{
-    setOptions(items);if(items.length) void load(items[0].id);
+    setOptions(items);
+    const requested = new URLSearchParams(window.location.search).get("scenario");
+    const matching = items.find(item => item.id === requested);
+    if (items.length) void load(matching?.id ?? items[0].id);
   }).catch(e=>setError(e instanceof Error ? e.message : "Replay API unavailable"));},[load]);
   useEffect(() => {
     if (!scenario || !playing) return;
@@ -79,7 +82,7 @@ export default function ReplayPage() {
               <text x="18" y="30" fontSize="16" fill="#a2bbc7">SYNTHETIC FRAME {frame} · {(frame/fps).toFixed(1)}s</text>
               {boxes.map(b=><g key={`${b.track_id}:${frame}`}>
                 <rect x={b.box.left} y={b.box.top} width={b.box.right-b.box.left} height={b.box.bottom-b.box.top}
-                  fill="none" stroke={b.concept==="person"?"#45d9b7":"#f3b67a"} strokeWidth="3"/>
+                  fill="none" stroke={b.concept==="person"?"#45d9b7":b.concept==="car"?"#7bacf6":b.concept==="shopping_cart"?"#bd97ff":"#f3b67a"} strokeWidth="3"/>
                 <text x={b.box.left} y={Math.max(52,b.box.top-8)} fill={b.concept==="person"?"#45d9b7":"#f3b67a"} fontSize="15">{b.concept} — {b.track_id.split(":")[1]}</text>
               </g>)}
             </svg>
@@ -89,10 +92,18 @@ export default function ReplayPage() {
             <span>{frame}/{maxFrame}</span></div>
           {rule&& <div className="safety-fields">
             <label className="safety-label">Rule type
-              <select className="safety-input" value={rule.rule_type} onChange={e=>{setRule({...rule,rule_type:e.target.value as RuleSpec["rule_type"]});setResult(null);}}>
+              <select className="safety-input" value={rule.rule_type} onChange={e=>{setRule({...rule,rule_type:e.target.value as RuleSpec["rule_type"],concept:(e.target.value.startsWith("object_")) ? (rule.concept ?? "person") : null});setResult(null);}}>
                 <option value="person_and_forklift_in_zone">Person + forklift in zone</option>
                 <option value="person_in_zone">Person in zone</option>
+                <option value="object_in_zone">Object dwell in zone</option>
+                <option value="object_zone_entry">Object entry transition</option>
               </select></label>
+            {(rule.rule_type === "object_in_zone" || rule.rule_type === "object_zone_entry") &&
+              <label className="safety-label">Tracked object concept
+                <select className="safety-input" value={rule.concept ?? "car"} onChange={e=>{setRule({...rule,concept:e.target.value});setResult(null);}}>
+                  {["person","forklift","car","shopping_cart","cardboard_box","excavator"].map(x=><option key={x} value={x}>{x.replaceAll("_"," ")}</option>)}
+                </select>
+              </label>}
             <label className="safety-label">Minimum duration (seconds)
               <input className="safety-input" type="number" min={0.1} max={30} step={0.1} value={rule.min_duration_seconds}
                 onChange={e=>{setRule({...rule,min_duration_seconds:Number(e.target.value)});setResult(null);}} /></label>
