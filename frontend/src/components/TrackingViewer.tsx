@@ -279,7 +279,7 @@ export default function TrackingViewer({ video, initialRule }: { video: VideoIte
         </div>
         {job?.status === "completed" && <SafetyRulePanel key={job.id} jobId={job.id} zone={safetyZone} onZoneChange={z => {setSafetyZone(z);setApprovedRule(null);}}
           drawing={drawing} onDrawingChange={setDrawing}
-          initialRule={initialRule} availableConcepts={job.concepts}
+          initialRule={initialRule} availableConcepts={job.concepts} availablePersonTracks={report.tracks.filter(t => t.concept === "person").map(t => t.track_id)}
           onEvaluated={(result,rule) => {setEvaluation(result);setApprovedRule(rule);}}
           onSeek={seekTo} />}
         {job?.status === "completed" && <EvidenceDashboard key={`evidence-${job.id}`} jobId={job.id} rule={approvedRule}

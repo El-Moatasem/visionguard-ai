@@ -13,10 +13,11 @@ const PRESETS: Record<string, SafetyZone> = {
   full: { name: "Whole frame", x_min: 0, y_min: 0, x_max: 1, y_max: 1 },
 };
 
-export default function SafetyRulePanel({ jobId, onZoneChange, zone, drawing, onDrawingChange, onSeek, onEvaluated, initialRule, availableConcepts }: {
+export default function SafetyRulePanel({ jobId, onZoneChange, zone, drawing, onDrawingChange, onSeek, onEvaluated, initialRule, availableConcepts, availablePersonTracks = [] }: {
   jobId: string;
   initialRule?: RuleSpec;
   availableConcepts?: string[];
+  availablePersonTracks?: string[];
   zone: SafetyZone;
   drawing: boolean;
   onZoneChange: (zone: SafetyZone) => void;
@@ -26,6 +27,7 @@ export default function SafetyRulePanel({ jobId, onZoneChange, zone, drawing, on
 }) {
   const [ruleType, setRuleType] = useState<RuleType>(initialRule?.rule_type ?? "person_and_forklift_in_zone");
   const [ruleConcept, setRuleConcept] = useState<string>(initialRule?.concept ?? availableConcepts?.[0] ?? "person");
+  const [excludedOperators, setExcludedOperators] = useState<string[]>(initialRule?.excluded_operator_track_ids ?? []);
   const [ruleName, setRuleName] = useState(initialRule?.name ?? "Worker and forklift in operating area");
   const [duration, setDuration] = useState(initialRule?.min_duration_seconds ?? 0.5);
   const [gapTolerance, setGapTolerance] = useState(2);
@@ -73,6 +75,7 @@ export default function SafetyRulePanel({ jobId, onZoneChange, zone, drawing, on
     const rule: RuleSpec = {
       name: ruleName, rule_type: ruleType, min_duration_seconds: duration,
       max_observation_gap_frames: gapTolerance, zone,
+      excluded_operator_track_ids: ruleType === "person_and_forklift_in_zone" ? excludedOperators : [],
       concept: ruleType === "object_in_zone" || ruleType === "object_zone_entry" ? ruleConcept : null,
     };
     try { const result = await evaluateSafetyRule(jobId, rule); setEvaluation(result); onEvaluated?.(result,rule); }
@@ -115,6 +118,19 @@ export default function SafetyRulePanel({ jobId, onZoneChange, zone, drawing, on
           </select>
         </label>}
 
+      {ruleType === "person_and_forklift_in_zone" && availablePersonTracks.length > 0 &&
+        <fieldset className="vg-operator-fieldset">
+          <legend>Reviewer-confirmed forklift operators (optional)</legend>
+          <p className="helper">Only select a person's track after reviewing the video. Selected operators are excluded from pedestrian/forklift matches. Geometric operator candidates remain review items.</p>
+          {availablePersonTracks.map(trackId =>
+            <label className="vg-operator-checkbox" key={trackId}>
+              <input type="checkbox" checked={excludedOperators.includes(trackId)} onChange={event => {
+                setExcludedOperators(previous => event.target.checked ? [...previous, trackId] : previous.filter(id => id !== trackId));
+                setEvaluation(null); onEvaluated?.(null, null);
+              }}/>
+              <span>{trackId}</span>
+            </label>)}
+        </fieldset>}
       <label className="safety-label">Minimum observed duration (seconds)<input className="safety-input" type="number" min={0.01} max={30} step={0.1} value={duration} onChange={e => {setDuration(Number(e.target.value));setEvaluation(null);onEvaluated?.(null,null);}} /></label>
       <label className="safety-label">Max missing frames for review association<input className="safety-input" type="number" min={0} max={30} step={1} value={gapTolerance} onChange={e => {setGapTolerance(Number(e.target.value));setEvaluation(null);onEvaluated?.(null,null);}} /></label>
       <label className="safety-label">Zone preset<select className="safety-input" defaultValue="center" onChange={e => applyZone(PRESETS[e.target.value])}>
@@ -141,6 +157,11 @@ export default function SafetyRulePanel({ jobId, onZoneChange, zone, drawing, on
       <div className="safety-outcome"><strong>{evaluation.outcome.replaceAll("_", " ")}</strong>
         <span>{evaluation.event_count} observed match(es) · {evaluation.review_count} review item(s)</span></div>
       <p className="helper">{evaluation.disclaimer}</p>
+      {ruleType === "person_and_forklift_in_zone" &&
+        <p className="helper" role="status">
+          Operator candidates needing review: {evaluation.operator_candidate_count ?? 0} ·
+          Reviewer-confirmed operator tracks excluded: {evaluation.operator_excluded_count ?? 0}
+        </p>}
       {evaluation.events.map(event => <button type="button" key={event.event_id} className="safety-event"
         disabled={event.start_seconds_approx === null} onClick={() => {if(event.start_seconds_approx !== null) onSeek(event.start_seconds_approx);}}>
         <strong>Observed match: frames {event.start_frame}–{event.end_frame}</strong>

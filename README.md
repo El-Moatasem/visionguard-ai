@@ -291,9 +291,23 @@ Single-process background jobs can be interrupted by server restarts and are **n
 - Local evidence records preserve source hashes, rule parameters, sampled observations, and appended human decisions. They are **not** independently verified model outputs or tamper-proof audit records.
 - Evaluate positive examples, negative controls, occlusion, model failures, and false positives before making performance claims.
 
+## Built during the hackathon
+
+The pre-build starter at **Oct 26 (`df6b20b`)** contained a SAM adapter, Muse connectivity, and roadmap documentation. Feature development was carried out during the hackathon build window; links below refer to the documented project history, not claims of completed safety certification.
+
+| PR(s) | Build window | Work |
+| --- | --- | --- |
+| #3–4 | Oct 29 | Video ingestion, playback, mobile capture |
+| #5–6 | Oct 30 | SAM tracking, fragments, observed gaps |
+| #7–12 | Oct 31 | Muse rule drafting, deterministic rules, temporal handling |
+| #13–14 | Nov 1 | Evidence snapshots, human reviews, synthetic replay |
+| #15–17 | Nov 1–2 | Performance, progressive previews, preflight checks |
+
+**Validation scope:** one real warehouse SAM clip, six hand-authored synthetic evaluation scenarios, and a conservative operator-candidate review mechanism. A real operator/pedestrian evaluation on the final clip must be verified before recording. Automated operator identity classification is **not** claimed.
+
 ## Hackathon disclosure
 
-This repository includes work from different development stages. **Do not represent pre-event code or third-party assets as originally created during the official hackathon building window.** Identify and demonstrate the work actually performed for the event, disclose reused components where required, and verify the organizer's current submission rules. This project is intended for a short, accurate demo of its actual capabilities.
+The build-window features and the pre-build starter are itemized above. Third-party video is not bundled, and the working real model demonstration must be distinguished from synthetic replay.
 
 - [Meta Global AI Developer Hackathon](https://cerebralvalley.ai/e/meta-ai-developer-hackathon)
 - [Meta SAM API basics](https://dev.meta.ai/docs/cookbook/sam-api-basics)
