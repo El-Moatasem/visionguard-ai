@@ -18,6 +18,7 @@ from pathlib import Path
 from fastapi import UploadFile
 
 from backend.app.services.tracking_jobs import probe_video
+from backend.app.services import db_store
 from backend.app.services.video_store import (
     VideoUploadError, get_video_file, save_video, storage_dir,
 )
@@ -133,4 +134,6 @@ async def prepare_for_sam(video_id: str, start_seconds: float, duration_seconds:
     })
     info = storage_dir() / f"{saved['id']}.json"
     info.write_text(json.dumps(saved, indent=2) + "\n", encoding="utf-8")
+    if db_store.enabled():
+        db_store.put_video(saved)
     return saved
