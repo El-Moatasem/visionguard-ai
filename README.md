@@ -17,21 +17,22 @@
 
 **VisionGuard AI** is the safety-review application: ingest footage, inspect tracked observations, define monitored zones, evaluate rules, and review evidence. **SceneOps** is the name for the reusable **video-to-rule architecture inside the current application**—not a separate shipped library, model, or product.
 
-The long-term direction is to reuse SceneOps for parking, retail, and construction workflows. **Those industry modules and generic object concepts are planned, not implemented in the current MVP.**
+The reusable rule layer now includes **bounded object concepts and two additional deterministic operators** for parking, retail and construction demonstrations. **Real live SAM tracking remains validated only for the warehouse people/forklift clip**; the new industries have offline synthetic fixtures but need evaluation using authorized real footage before claiming accuracy.
 
 ### What works today
 
 | Capability | Current scope |
 | --- | --- |
 | Video ingest & playback | Local MP4/MOV/WebM uploads, a selectable **Recent Uploads** list, browser playback, and camera capture where supported. WebM must be converted before SAM inference. |
-| Hosted visual tracking | Explicit, billable Meta SAM 3.1 requests for **`person`** and **`forklift`**; progressive **provisional** box previews; final normalized tracks and gaps. |
-| Zone-based evaluation | Reviewer-defined rectangle; `person_in_zone` and `person_and_forklift_in_zone` rules; observed-duration thresholds. Runs locally **without** a model call. |
+| Hosted visual tracking | Explicit, billable Meta SAM 3.1 requests for approved concepts: **`person`, `forklift`, `car`, `shopping_cart`, `cardboard_box`, `excavator`**. The first two are verified on one real warehouse clip; others are **not live-validated**. Progressive previews and normalized tracks/gaps are available. |
+| Zone-based evaluation | Reviewer-defined rectangle; legacy person/forklift rules plus **`object_in_zone`** (observed dwell) and **`object_zone_entry`** (observed outside→inside transition). The evaluator is deterministic and **offline**. |
 | Muse Spark | Optional, billable natural-language drafting of a *supported* rule; human approval is required. Unsupported requests remain unsupported. |
 | Uncertainty | Missing frames, approximate timing, and unverified track continuity are surfaced as review candidates rather than invented observations. |
 | Evidence & review | Local evidence snapshots, source hashes, sampled boxes, reviewer decisions, and JSON / printable HTML exports. |
-| Synthetic replay | Offline fixtures for co-presence, occlusion review, and clear aisle; distinctly labeled **synthetic**, not real video or actual SAM output. |
+| Synthetic replay | **Six** offline fixtures: co-presence, occlusion, clear aisle, **parking/car dwell, retail/shopping-cart occupancy, construction/person zone entry**. These are handwritten numeric test scenes, **not real video or SAM outputs**. |
+| Scenario library | Search/filter prepared scenario cards, select installed footage, and tag newly uploaded videos to a scenario. **No licensed video footage is included in the repository.** |
 
-**Not implemented:** continuous live-camera inference, collision prediction, calibrated distance/speed estimates, certified danger detection, generalized SceneOps concepts, a pre-seeded multi-industry video gallery, or production authentication. Uploads currently appear automatically in **Recent Uploads**; a unified curated demo gallery is a **planned UI enhancement**.
+**Not implemented:** continuous live-camera inference, collision prediction, calibrated distance/speed estimates, certified danger detection, automated pedestrian-versus-vehicle-operator classification, three-minute dwell enforcement, or production authentication. The curated **scenario cards and imported-video picker** are implemented; the **real multi-industry footage is intentionally not bundled** and must be supplied by its rights holder.
 
 ## How it works
 
@@ -41,7 +42,7 @@ Authorized MP4/MOV upload ──► Local video store + SHA-256
           └──► Explicit "Analyze with SAM" (billable)
                         │
                   Meta SAM 3.1
-             person + forklift requests
+        approved concepts selected per video
                         │
           Provisional streamed box previews
                         │
@@ -106,7 +107,7 @@ source .venv/bin/activate
 python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 ```
 
-**Do not use `--reload` during a billable SAM job.** Reloading can terminate the local worker mid-stream. For a cost-controlled single-concept test, start with `SAM_DEMO_CONCEPTS=person` in front of the command. By default the backend analyzes **both** concepts sequentially; `SAM_CONCURRENT_CONCEPTS=1` enables optional parallel requests after basic integration succeeds.
+**Do not use `--reload` during a billable SAM job.** Reloading can terminate the local worker mid-stream. For a cost-controlled single-concept test, start with `SAM_DEMO_CONCEPTS=person` in front of the command. For an ordinary untagged upload, the UI defaults to **person + forklift**; selecting a parking or retail demo supplies its approved concept list. `SAM_CONCURRENT_CONCEPTS=1` enables optional parallel requests after basic integration succeeds. `SAM_DEMO_CONCEPTS` is an optional CLI/environment fallback override, but an explicit UI concept selection takes priority.
 
 Check [Swagger API docs](http://127.0.0.1:8000/docs) or:
 
@@ -143,26 +144,59 @@ python -m backend.scripts.prepare_demo_clips \
 
 ### First end-to-end local demo
 
-1. Upload and select the prepared video in **Recent Uploads**.
+1. Upload and select a prepared video under **My uploads**, or choose a scenario card in **Demo & Video Library** and add an authorized clip.
 2. Click **Analyze with SAM (billable)** once. The interface shows phases and may display **provisional** observations before completion.
 3. After **COMPLETED**, inspect boxes, track fragments, and missing-frame gaps. A completed request with **zero detections** is a valid possible result.
-4. In **Safety Intelligence**, choose/draw a zone and evaluate a supported rule. Rule evaluation is **offline and does not consume Meta credits**.
-5. Inspect observed potential matches and separate review items; click an event to seek to its approximate time.
+4. In **Safety Intelligence**, choose/draw a zone and evaluate a supported rule. Scenario-tagged footage supplies a suggested zone and rule. **Rule evaluation is offline** and consumes no Meta credits.
+5. Inspect observed potential matches and separate review items; click an event or **timeline marker** to seek to its approximate time. Only tracks involved in an evaluated match are highlighted.
 6. Save an evidence snapshot, record **confirmed / rejected / unresolved** human decisions, and export JSON or HTML.
 
 **Do not present an observed rule match as a confirmed accident.** The shared-zone rule can also match an operator in the forklift; review the actual frames before interpreting a result.
 
-## Demonstrations
+## Demo & Video Library — SceneOps
 
-| Demo | Data source | What it demonstrates |
-| --- | --- | --- |
-| Warehouse person + forklift | **Real local video**, after user-authorized SAM processing | Hosted tracking, boxes, zone-based rule evaluation, and evidence workflow. |
-| Warehouse co-presence | **Synthetic replay fixture** | Positive observed-rule-match path without API costs. |
-| Occlusion review | **Synthetic replay fixture** | Observation gaps and unverified continuity routed for review. |
-| Clear aisle | **Synthetic replay fixture** | Negative control: no invented match when conditions are not observed. |
-| Parking / retail / construction | **Future SceneOps extensions** | New object concepts, rules, data, and validation are required; **not live demos yet**. |
+The gallery is backed by `GET /api/v1/demo/scenarios` and the existing locally persisted `GET /api/v1/videos`. **All uploads automatically enter the video list**. A scenario's **Add video** action tags that upload with its recommended concepts, duration and review zone. The real model is only called by clicking **Analyze with SAM (billable)**—never by listing or selecting a clip.
 
-Use **http://localhost:3000/replay** for the labeled synthetic demonstrations. They use hand-authored coordinates, not recorded footage or actual SAM output. Only real, completed model results should be described as live SAM detections.
+| Scenario | Concepts | Rule | Validation |
+| --- | --- | --- | --- |
+| Warehouse shared zone | `person`, `forklift` | Co-presence | **One real SAM clip completed** locally; broader reliability not established |
+| Pedestrian / forklift | `person`, `forklift` | Co-presence | Needs a separate rights-cleared real clip and evaluation |
+| Parking loading zone | `car` | `object_in_zone` (observed dwell) | Offline synthetic replay passes; **real SAM not validated** |
+| Retail clearance zone | `shopping_cart`, `cardboard_box` | `object_in_zone` | Offline synthetic replay passes; **real SAM not validated** |
+| Construction operating zone | `person`, `excavator` | `object_zone_entry` | Offline synthetic replay passes; **real SAM not validated** |
+| Clear aisle | `person`, `forklift` | Negative co-presence control | Existing synthetic fixture |
+| Occlusion review | `person`, `forklift` | Uncertainty / review | Existing synthetic fixture |
+
+### Install your own demo videos
+
+The repository **does not ship stock footage**. First obtain authorized short MP4s (check redistribution, facial privacy, and whether uploading to Meta is permitted). Prepare each clip with the same file used by the browser:
+
+```bash
+# From the repository root; adjust source paths to existing files.
+python -m backend.scripts.prepare_demo_clips \
+  --input samples/demo/raw/parking_source.mp4 \
+  --output samples/demo/prepared/parking-loading-zone.mp4 \
+  --seconds 8 --height 480 --fps 12
+
+python -m backend.scripts.prepare_demo_clips \
+  --input samples/demo/raw/retail_source.mp4 \
+  --output samples/demo/prepared/retail-clearance.mp4 \
+  --seconds 8 --height 480 --fps 12
+
+# Register prepared clips into the same persistent library as regular uploads.
+python -m backend.scripts.seed_demo_library --all
+
+# Or import a single clip:
+python -m backend.scripts.seed_demo_library \
+  --scenario parking-loading-zone \
+  --source samples/demo/prepared/parking-loading-zone.mp4
+```
+
+`--all` skips scenario filenames not present. Import is local and consumes no model credits. Demo footage and persisted store are gitignored; **do not delete `var/` or `.env` during updates**. Alternatively, click **Add video** on a scenario card to upload the file directly. A normal **Upload video** goes under **My uploads**.
+
+When running live inference on a parking or retail clip, use the matching tracking mode, then approve a reviewer zone and evaluate a rule. A 2-second car dwell demonstration is a **short-clip example**, not a verified 3-minute parking violation. Image-space cart occupancy is **not proof that an aisle is physically obstructed**. Person zone entry means observed outside-to-inside image-space transition; occluded intervals remain review-only.
+
+Go to **http://localhost:3000/replay** to try all six distinctly labeled synthetic fixtures, including car, cart, and construction examples, **without footage, a model key, or model charges**.
 
 ## Architecture and repository layout
 
@@ -174,15 +208,17 @@ Use **http://localhost:3000/replay** for the labeled synthetic demonstrations. T
 visionguard-ai/
 ├── backend/
 │   ├── app/
-│   │   ├── api/                  # video, tracking, safety, evidence, replay routes
+│   │   ├── api/                  # video, tracking, safety, evidence, replay, demo routes
 │   │   └── services/
 │   │       ├── sam.py             # hosted SAM stream parsing
+│   │       ├── sceneops_concepts.py  # supported noun-phrase concept registry
+│   │       ├── demo_catalog.py   # predefined demo metadata
 │   │       ├── tracking_jobs.py   # local background jobs + previews
 │   │       ├── tracking_report.py # boxes / fragments / gaps
 │   │       ├── safety_engine.py   # deterministic temporal rules
 │   │       ├── evidence_store.py  # local evidence and audit history
 │   │       └── replay_fixtures.py # synthetic scenario loader
-│   ├── scripts/                  # smoke tests and video preparation
+│   ├── scripts/                  # smoke tests, video preparation, seeding demo library
 │   └── tests/                    # offline test suite
 ├── frontend/                     # Next.js app (Yarn lockfile)
 ├── benchmarks/replay/            # labeled synthetic fixtures
@@ -203,16 +239,17 @@ Further technical notes: [tracking pipeline](docs/architecture/object-tracking-p
 | --- | --- |
 | `GET /health` | Backend health |
 | `GET /api/v1/meta/status` | Local Meta key-presence check only |
-| `POST /api/v1/videos` | Store an uploaded video |
+| `POST /api/v1/videos` (optional `?scenario_id=`) | Store uploaded video, optionally tagged to a demo |
+| `GET /api/v1/demo/scenarios` | List demo profiles, rules and default zones |
 | `GET /api/v1/videos` | List recent uploads |
-| `POST /api/v1/videos/{id}/tracking-jobs` | **Explicitly billable** SAM analysis |
+| `POST /api/v1/videos/{id}/tracking-jobs` | **Explicitly billable** SAM analysis; optional JSON `{"concepts":["car"]}` |
 | `GET /api/v1/tracking-jobs/{id}` | Job state, phase and safe diagnostics |
 | `GET /api/v1/tracking-jobs/{id}/preview` | Provisional, read-only observations (may be 404 until ready) |
 | `GET /api/v1/tracking-jobs/{id}/result` | Completed normalized tracking report |
 | `POST /api/v1/rules/interpret` | Optional **billable** Muse rule draft |
 | `POST /api/v1/tracking-jobs/{id}/evaluate` | Offline deterministic safety evaluation |
 | `/api/v1/evidence-reports` | Local evidence snapshots, reviews and exports |
-| `/api/v1/replay/scenarios` | Read-only synthetic benchmarks |
+| `/api/v1/replay/scenarios` | Read-only synthetic benchmarks (six fixtures) |
 
 All endpoints that store data or trigger Meta inference are intended for **trusted local use**, not an unprotected public deployment.
 
@@ -231,7 +268,7 @@ yarn typecheck
 yarn build
 ```
 
-The GitHub Actions workflows run backend tests and frontend typecheck/build. These checks **do not** establish live SAM accuracy, model availability, or safe behavior in a real workplace.
+The GitHub Actions workflows run backend tests and frontend typecheck/build. These checks **do not** establish live SAM accuracy, model availability, or safe behavior in a real workplace. The extended parking, retail, and construction paths were tested using offline synthetic observations only. The frontend's full build should also be run locally before merging.
 
 Optional real Meta checks are **billable** and should use short licensed inputs:
 
@@ -265,3 +302,13 @@ This repository includes work from different development stages. **Do not repres
 ## License
 
 MIT applies to original repository code only. Meta models, third-party dependencies, video footage, and external media are governed by their respective terms. See [LICENSE](LICENSE).
+
+## SceneOps change notes (Nov 2, 2026)
+
+- The SceneOps **concept registry** uses an explicit allowlist; it does not accept arbitrary model prompts through the job API.
+- The UI can choose one of four tracking modes (warehouse, parking, retail or construction). Each selected concept represents a **separate billable SAM inference**, explicitly started by the user.
+- `object_in_zone` checks continuous observed frames for the selected object concept; it is a **2D image-space proxy**.
+- `object_zone_entry` requires observed outside→inside transitions; missing-frame crossings become `needs_review`, not certain entries.
+- Event markers and involved-track highlighting are available **after deterministic rule evaluation**, not before.
+- Predefined scenario cards require separately imported authorized video files; default synthetic replay fixtures are clearly identified as simulated data.
+- Live cloud-model validation for `car`, `shopping_cart`, `cardboard_box`, and `excavator` **has not been performed by this package**.

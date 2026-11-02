@@ -6,6 +6,9 @@ export type VideoItem = {
   sha256: string;
   created_at: string;
   status: "stored";
+  library_source?: "upload" | "demo";
+  scenario_id?: string | null;
+  suggested_concepts?: string[];
   sam_compatible_container: boolean;
   note: string;
   file_url: string;
@@ -25,10 +28,10 @@ async function readResponse<T>(response: Response): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export async function uploadVideo(file: File): Promise<VideoItem> {
+export async function uploadVideo(file: File, scenarioId?: string | null): Promise<VideoItem> {
   const form = new FormData();
   form.append("file", file, file.name);
-  return readResponse<VideoItem>(await fetch(`${API}/videos`, { method: "POST", body: form }));
+  return readResponse<VideoItem>(await fetch(`${API}/videos${scenarioId ? `?scenario_id=${encodeURIComponent(scenarioId)}` : ""}`, { method: "POST", body: form }));
 }
 export async function fetchVideos(): Promise<VideoItem[]> {
   const data = await readResponse<{ items: VideoItem[] }>(
@@ -40,6 +43,26 @@ export function playbackUrl(item: VideoItem): string {
   return `${API}/videos/${encodeURIComponent(item.id)}/file`;
 }
 
+
+export type DemoScenario = {
+  id: string;
+  title: string;
+  industry: string;
+  description: string;
+  concepts: string[];
+  rule_type: RuleType;
+  rule_concept: string | null;
+  duration: number;
+  zone: [number, number, number, number];
+  provenance: "real_video_required" | "synthetic_replay_available";
+  replay_id?: string;
+  expected: string;
+};
+export async function fetchDemoScenarios(): Promise<DemoScenario[]> {
+  const data = await readResponse<{items: DemoScenario[]}>(await fetch(`${API}/demo/scenarios`, {cache: "no-store"}));
+  return data.items;
+}
+export const APPROVED_CONCEPTS = ["person", "forklift", "car", "shopping_cart", "cardboard_box", "excavator"] as const;
 
 export type TrackingJob = {
   id: string;
@@ -92,8 +115,11 @@ export async function fetchTrackingPreview(jobId: string): Promise<TrackingRepor
   return readResponse<TrackingReport>(response);
 }
 
-export async function startTracking(videoId: string): Promise<TrackingJob> {
-  return readResponse<TrackingJob>(await fetch(`${API}/videos/${encodeURIComponent(videoId)}/tracking-jobs`, {method: "POST"}));
+export async function startTracking(videoId: string, concepts?: string[]): Promise<TrackingJob> {
+  return readResponse<TrackingJob>(await fetch(`${API}/videos/${encodeURIComponent(videoId)}/tracking-jobs`, {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({concepts: concepts ?? ["person", "forklift"]})
+  }));
 }
 export async function fetchTrackingJobs(videoId: string): Promise<TrackingJob[]> {
   const data = await readResponse<{items: TrackingJob[]}>(await fetch(`${API}/videos/${encodeURIComponent(videoId)}/tracking-jobs`, {cache: "no-store"}));
@@ -106,9 +132,9 @@ export async function fetchTrackingResult(jobId: string): Promise<TrackingReport
   return readResponse<TrackingReport>(await fetch(`${API}/tracking-jobs/${encodeURIComponent(jobId)}/result`, {cache: "no-store"}));
 }
 
-export type RuleType = "person_in_zone" | "person_and_forklift_in_zone";
+export type RuleType = "person_in_zone" | "person_and_forklift_in_zone" | "object_in_zone" | "object_zone_entry";
 export type SafetyZone = {name: string; x_min: number; y_min: number; x_max: number; y_max: number};
-export type RuleSpec = {name: string; rule_type: RuleType; min_duration_seconds: number; max_observation_gap_frames: number; zone: SafetyZone};
+export type RuleSpec = {name: string; rule_type: RuleType; min_duration_seconds: number; max_observation_gap_frames: number; zone: SafetyZone; concept?: string | null};
 export type RuleDraft = {name: string; rule_type: RuleType | "unsupported"; min_duration_seconds: number; rationale: string};
 export type SafetyEvent = {
   event_id: string; status: "potential_hazard" | "needs_review"; start_frame: number; end_frame: number;

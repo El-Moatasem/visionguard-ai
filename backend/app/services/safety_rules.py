@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from typing import Literal
+from backend.app.services.sceneops_concepts import CONCEPT_PROMPTS, normalize_concept
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
@@ -25,8 +26,19 @@ class NormalizedZone(StrictModel):
 
 class RuleSpec(StrictModel):
     name: str = Field(min_length=1, max_length=80)
-    rule_type: Literal["person_in_zone", "person_and_forklift_in_zone"]
+    rule_type: Literal["person_in_zone", "person_and_forklift_in_zone", "object_in_zone", "object_zone_entry"]
     zone: NormalizedZone
+    concept: str | None = None
+
+    @model_validator(mode="after")
+    def validate_concept(self):
+        if self.rule_type in {"object_in_zone", "object_zone_entry"}:
+            if self.concept is None:
+                raise ValueError("A concept is required for a generic SceneOps rule")
+            self.concept = normalize_concept(self.concept)
+        elif self.concept is not None:
+            raise ValueError("Legacy rule types cannot select a different concept")
+        return self
     min_duration_seconds: float = Field(default=0.5, gt=0, le=30, allow_inf_nan=False)
     # Missing source frame indices allowed for a *provisional* association, never proof of visibility.
     max_observation_gap_frames: int = Field(default=2, ge=0, le=30)

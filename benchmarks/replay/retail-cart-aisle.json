@@ -1,0 +1,1049 @@
+{
+  "id": "retail-cart-aisle",
+  "title": "Retail: shopping cart in aisle (synthetic)",
+  "description": "Inspect shopping carts occupying a designated clearance zone. Synthetic coordinates ONLY; not SAM outputs.",
+  "provenance": "synthetic_fixture",
+  "live_inference": false,
+  "video_asset_included": false,
+  "camera_feed": false,
+  "rights": "Original hand-authored numeric geometry; no third-party video or actual SAM output.",
+  "default_rule": {
+    "name": "Retail: shopping cart in aisle",
+    "rule_type": "object_in_zone",
+    "concept": "shopping_cart",
+    "zone": {
+      "name": "Reviewer-marked example zone",
+      "x_min": 0.28,
+      "y_min": 0.2,
+      "x_max": 0.72,
+      "y_max": 0.95
+    },
+    "min_duration_seconds": 1.0,
+    "max_observation_gap_frames": 2
+  },
+  "tracking_report": {
+    "schema_version": 1,
+    "media_metadata": {},
+    "models": [
+      "sam-3.1"
+    ],
+    "concepts_requested": [
+      "shopping_cart",
+      "cardboard_box"
+    ],
+    "media_probe": {
+      "available": true,
+      "width": 640,
+      "height": 360,
+      "fps": 10,
+      "duration_seconds": 4,
+      "codec": "h264"
+    },
+    "frame_time_note": "frame/fps is only an approximation for constant-frame-rate source video; verify synchronization before using timestamps as evidence",
+    "time_alignment": "approximate",
+    "box_count": 80,
+    "track_count": 2,
+    "gap_count": 0,
+    "tracks": [
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "observed_frames": 40,
+        "first_frame": 0,
+        "last_frame": 39,
+        "fragment_count": 1,
+        "has_uncertain_identity_continuity": false,
+        "fragments": [
+          {
+            "fragment_id": "cardboard_box:sample-1#0",
+            "start_frame": 0,
+            "end_frame": 39
+          }
+        ]
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "observed_frames": 40,
+        "first_frame": 0,
+        "last_frame": 39,
+        "fragment_count": 1,
+        "has_uncertain_identity_continuity": false,
+        "fragments": [
+          {
+            "fragment_id": "shopping_cart:sample-1#0",
+            "start_frame": 0,
+            "end_frame": 39
+          }
+        ]
+      }
+    ],
+    "gaps": [],
+    "fragment_gap_tolerance_frames": 2,
+    "boxes": [
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 0,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 0,
+        "box": {
+          "left": 30.0,
+          "top": 175.0,
+          "right": 100.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 1,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 1,
+        "box": {
+          "left": 60.0,
+          "top": 175.0,
+          "right": 130.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 2,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 2,
+        "box": {
+          "left": 90.0,
+          "top": 175.0,
+          "right": 160.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 3,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 3,
+        "box": {
+          "left": 120.0,
+          "top": 175.0,
+          "right": 190.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 4,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 4,
+        "box": {
+          "left": 150.0,
+          "top": 175.0,
+          "right": 220.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 5,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 5,
+        "box": {
+          "left": 180.0,
+          "top": 175.0,
+          "right": 250.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 6,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 6,
+        "box": {
+          "left": 210.0,
+          "top": 175.0,
+          "right": 280.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 7,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 7,
+        "box": {
+          "left": 240.0,
+          "top": 175.0,
+          "right": 310.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 8,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 8,
+        "box": {
+          "left": 270.0,
+          "top": 175.0,
+          "right": 340.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 9,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 9,
+        "box": {
+          "left": 270.0,
+          "top": 175.0,
+          "right": 340.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 10,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 10,
+        "box": {
+          "left": 270.0,
+          "top": 175.0,
+          "right": 340.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 11,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 11,
+        "box": {
+          "left": 270.0,
+          "top": 175.0,
+          "right": 340.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 12,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 12,
+        "box": {
+          "left": 270.0,
+          "top": 175.0,
+          "right": 340.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 13,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 13,
+        "box": {
+          "left": 270.0,
+          "top": 175.0,
+          "right": 340.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 14,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 14,
+        "box": {
+          "left": 270.0,
+          "top": 175.0,
+          "right": 340.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 15,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 15,
+        "box": {
+          "left": 270.0,
+          "top": 175.0,
+          "right": 340.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 16,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 16,
+        "box": {
+          "left": 270.0,
+          "top": 175.0,
+          "right": 340.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 17,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 17,
+        "box": {
+          "left": 270.0,
+          "top": 175.0,
+          "right": 340.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 18,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 18,
+        "box": {
+          "left": 270.0,
+          "top": 175.0,
+          "right": 340.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 19,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 19,
+        "box": {
+          "left": 270.0,
+          "top": 175.0,
+          "right": 340.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 20,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 20,
+        "box": {
+          "left": 270.0,
+          "top": 175.0,
+          "right": 340.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 21,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 21,
+        "box": {
+          "left": 270.0,
+          "top": 175.0,
+          "right": 340.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 22,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 22,
+        "box": {
+          "left": 270.0,
+          "top": 175.0,
+          "right": 340.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 23,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 23,
+        "box": {
+          "left": 270.0,
+          "top": 175.0,
+          "right": 340.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 24,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 24,
+        "box": {
+          "left": 270.0,
+          "top": 175.0,
+          "right": 340.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 25,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 25,
+        "box": {
+          "left": 270.0,
+          "top": 175.0,
+          "right": 340.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 26,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 26,
+        "box": {
+          "left": 270.0,
+          "top": 175.0,
+          "right": 340.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 27,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 27,
+        "box": {
+          "left": 270.0,
+          "top": 175.0,
+          "right": 340.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 28,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 28,
+        "box": {
+          "left": 270.0,
+          "top": 175.0,
+          "right": 340.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 29,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 29,
+        "box": {
+          "left": 270.0,
+          "top": 175.0,
+          "right": 340.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 30,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 30,
+        "box": {
+          "left": 270.0,
+          "top": 175.0,
+          "right": 340.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 31,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 31,
+        "box": {
+          "left": 270.0,
+          "top": 175.0,
+          "right": 340.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 32,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 32,
+        "box": {
+          "left": 270.0,
+          "top": 175.0,
+          "right": 340.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 33,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 33,
+        "box": {
+          "left": 270.0,
+          "top": 175.0,
+          "right": 340.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 34,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 34,
+        "box": {
+          "left": 270.0,
+          "top": 175.0,
+          "right": 340.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 35,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 35,
+        "box": {
+          "left": 270.0,
+          "top": 175.0,
+          "right": 340.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 36,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 36,
+        "box": {
+          "left": 270.0,
+          "top": 175.0,
+          "right": 340.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 37,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 37,
+        "box": {
+          "left": 270.0,
+          "top": 175.0,
+          "right": 340.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 38,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 38,
+        "box": {
+          "left": 270.0,
+          "top": 175.0,
+          "right": 340.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      },
+      {
+        "track_id": "cardboard_box:sample-1",
+        "concept": "cardboard_box",
+        "frame": 39,
+        "box": {
+          "left": 490.0,
+          "top": 210.0,
+          "right": 560.0,
+          "bottom": 260.0
+        },
+        "fragment_id": "cardboard_box:sample-1#0"
+      },
+      {
+        "track_id": "shopping_cart:sample-1",
+        "concept": "shopping_cart",
+        "frame": 39,
+        "box": {
+          "left": 270.0,
+          "top": 175.0,
+          "right": 340.0,
+          "bottom": 225.0
+        },
+        "fragment_id": "shopping_cart:sample-1#0"
+      }
+    ],
+    "hazard_detection_implemented": false,
+    "identity_policy": "Do not interpolate missing frames, auto-reidentify across gaps, or treat SAM IDs as continuous after full occlusion."
+  },
+  "visualization": "Rectangles and zone in browser, no actual video"
+}

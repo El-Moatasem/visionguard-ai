@@ -23,6 +23,7 @@ from backend.app.config import SAM_MODEL, api_configured
 from backend.app.services.sam import run_video
 from backend.app.services.tracking_report import build_tracking_report
 from backend.app.services.video_store import VideoUploadError, get_video_file, storage_dir
+from backend.app.services.sceneops_concepts import normalize_concept
 
 logger = logging.getLogger(__name__)
 _LOCK = threading.Lock()
@@ -135,7 +136,7 @@ def probe_video(path: Path) -> dict[str, Any]:
         return {"available": False, "warning": "Could not inspect input video"}
 
 
-def create_job(video_id: str) -> dict[str, Any]:
+def create_job(video_id: str, requested_concepts: list[str] | None = None) -> dict[str, Any]:
     try:
         video_path, video = get_video_file(video_id)
     except VideoUploadError as exc:
@@ -172,10 +173,16 @@ def create_job(video_id: str) -> dict[str, Any]:
     if probe.get("duration_seconds") is not None and probe["duration_seconds"] > 30:
         raise TrackingError("Use a clip up to 30 seconds for this demo to bound API usage.", 413)
     # Use one concept for the first short live test, then enable both for the demo.
-    raw_concepts = os.getenv("SAM_DEMO_CONCEPTS", "person,forklift")
-    concepts = [name.strip().lower() for name in raw_concepts.split(",")]
-    if not concepts or any(name not in {"person", "forklift"} for name in concepts) or len(set(concepts)) != len(concepts):
-        raise TrackingError("SAM_DEMO_CONCEPTS must contain person and/or forklift once each", 500)
+    # An explicit environment override is useful for controlled debugging.
+    # Otherwise, the prepared demo's concepts select the model prompts.
+    override = os.getenv("SAM_DEMO_CONCEPTS", "").strip()
+    requested = requested_concepts if requested_concepts is not None else (override.split(",") if override else video.get("suggested_concepts") or ["person", "forklift"])
+    try:
+        concepts = [normalize_concept(str(name)) for name in requested]
+    except ValueError as exc:
+        raise TrackingError("Unsupported concept in SAM_DEMO_CONCEPTS or demo metadata", 422) from exc
+    if not 1 <= len(concepts) <= 3 or len(set(concepts)) != len(concepts):
+        raise TrackingError("Select 1–3 unique supported SAM concepts", 422)
     job_id = str(uuid.uuid4())
     with _LOCK:
         if _ACTIVE:
@@ -183,7 +190,7 @@ def create_job(video_id: str) -> dict[str, Any]:
         _ACTIVE.add(job_id)
     record = {"id": job_id, "video_id": video_id, "status": "queued",
               "created_at": datetime.now(timezone.utc).isoformat(), "model": SAM_MODEL,
-              "concepts": concepts, "media_probe": probe,
+              "concepts": concepts, "scenario_id": video.get("scenario_id"), "media_probe": probe,
               "phase": "queued", "concepts_completed": [],
               "preview_url": f"/api/v1/tracking-jobs/{job_id}/preview",
               "message": "Waiting for SAM 3.1 processing; this request uses Meta credits.",

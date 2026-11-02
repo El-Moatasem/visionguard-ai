@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import {
-  evaluateSafetyRule, interpretSafetyRule, type RuleDraft, type RuleSpec,
+  evaluateSafetyRule, interpretSafetyRule, APPROVED_CONCEPTS, type RuleDraft, type RuleSpec,
   type RuleType, type SafetyEvaluation, type SafetyZone,
 } from "@/lib/api";
 
@@ -13,8 +13,10 @@ const PRESETS: Record<string, SafetyZone> = {
   full: { name: "Whole frame", x_min: 0, y_min: 0, x_max: 1, y_max: 1 },
 };
 
-export default function SafetyRulePanel({ jobId, onZoneChange, zone, drawing, onDrawingChange, onSeek, onEvaluated }: {
+export default function SafetyRulePanel({ jobId, onZoneChange, zone, drawing, onDrawingChange, onSeek, onEvaluated, initialRule, availableConcepts }: {
   jobId: string;
+  initialRule?: RuleSpec;
+  availableConcepts?: string[];
   zone: SafetyZone;
   drawing: boolean;
   onZoneChange: (zone: SafetyZone) => void;
@@ -22,9 +24,10 @@ export default function SafetyRulePanel({ jobId, onZoneChange, zone, drawing, on
   onSeek: (seconds: number) => void;
   onEvaluated?: (evaluation: SafetyEvaluation | null, rule: RuleSpec | null) => void;
 }) {
-  const [ruleType, setRuleType] = useState<RuleType>("person_and_forklift_in_zone");
-  const [ruleName, setRuleName] = useState("Worker and forklift in operating area");
-  const [duration, setDuration] = useState(0.5);
+  const [ruleType, setRuleType] = useState<RuleType>(initialRule?.rule_type ?? "person_and_forklift_in_zone");
+  const [ruleConcept, setRuleConcept] = useState<string>(initialRule?.concept ?? availableConcepts?.[0] ?? "person");
+  const [ruleName, setRuleName] = useState(initialRule?.name ?? "Worker and forklift in operating area");
+  const [duration, setDuration] = useState(initialRule?.min_duration_seconds ?? 0.5);
   const [gapTolerance, setGapTolerance] = useState(2);
   const [boundInputs, setBoundInputs] = useState<Record<string, string> | null>(null);
   const [prompt, setPrompt] = useState("Flag a pedestrian and forklift observed in the same operating area for half a second.");
@@ -70,6 +73,7 @@ export default function SafetyRulePanel({ jobId, onZoneChange, zone, drawing, on
     const rule: RuleSpec = {
       name: ruleName, rule_type: ruleType, min_duration_seconds: duration,
       max_observation_gap_frames: gapTolerance, zone,
+      concept: ruleType === "object_in_zone" || ruleType === "object_zone_entry" ? ruleConcept : null,
     };
     try { const result = await evaluateSafetyRule(jobId, rule); setEvaluation(result); onEvaluated?.(result,rule); }
     catch (err) { setError(err instanceof Error ? err.message : "Rule evaluation failed"); }
@@ -101,7 +105,16 @@ export default function SafetyRulePanel({ jobId, onZoneChange, zone, drawing, on
       <label className="safety-label">Rule type<select className="safety-input" value={ruleType} onChange={e => {setRuleType(e.target.value as RuleType);setEvaluation(null);onEvaluated?.(null,null);}}>
         <option value="person_and_forklift_in_zone">Person + forklift simultaneously in zone</option>
         <option value="person_in_zone">Person foot-point in zone</option>
+        <option value="object_in_zone">Selected object occupies zone (dwell)</option>
+        <option value="object_zone_entry">Selected object enters zone</option>
       </select></label>
+      {(ruleType === "object_in_zone" || ruleType === "object_zone_entry") &&
+        <label className="safety-label">Object concept
+          <select className="safety-input" value={ruleConcept} onChange={e => {setRuleConcept(e.target.value);setEvaluation(null);onEvaluated?.(null,null);}}>
+            {APPROVED_CONCEPTS.map(x => <option value={x} key={x}>{x.replaceAll("_", " ")}{availableConcepts && !availableConcepts.includes(x) ? " (not tracked)" : ""}</option>)}
+          </select>
+        </label>}
+
       <label className="safety-label">Minimum observed duration (seconds)<input className="safety-input" type="number" min={0.01} max={30} step={0.1} value={duration} onChange={e => {setDuration(Number(e.target.value));setEvaluation(null);onEvaluated?.(null,null);}} /></label>
       <label className="safety-label">Max missing frames for review association<input className="safety-input" type="number" min={0} max={30} step={1} value={gapTolerance} onChange={e => {setGapTolerance(Number(e.target.value));setEvaluation(null);onEvaluated?.(null,null);}} /></label>
       <label className="safety-label">Zone preset<select className="safety-input" defaultValue="center" onChange={e => applyZone(PRESETS[e.target.value])}>

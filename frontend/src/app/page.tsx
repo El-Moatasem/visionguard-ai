@@ -4,7 +4,8 @@ import Link from "next/link";
 import { ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
 import CameraCapture from "@/components/CameraCapture";
 import TrackingViewer from "@/components/TrackingViewer";
-import { fetchVideos, uploadVideo, type VideoItem } from "@/lib/api";
+import DemoLibrary from "@/components/DemoLibrary";
+import { fetchVideos, fetchDemoScenarios, uploadVideo, type VideoItem, type DemoScenario, type RuleSpec } from "@/lib/api";
 
 const MAX_BYTES = 100 * 1024 * 1024;
 
@@ -13,6 +14,8 @@ export default function Home() {
   const phonePicker = useRef<HTMLInputElement>(null);
   const [chosen, setChosen] = useState<File | null>(null);
   const [videos, setVideos] = useState<VideoItem[]>([]);
+  const [scenarios, setScenarios] = useState<DemoScenario[]>([]);
+  const [pendingScenario, setPendingScenario] = useState<string | null>(null);
   const [selected, setSelected] = useState<VideoItem | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -24,8 +27,9 @@ export default function Home() {
     setLibraryLoading(true);
     setLibraryError("");
     try {
-      const items = await fetchVideos();
+      const [items, catalog] = await Promise.all([fetchVideos(), fetchDemoScenarios()]);
       setVideos(items);
+      setScenarios(catalog);
       setSelected((current) => items.find((v) => v.id === current?.id) ?? items[0] ?? null);
     } catch (err) {
       setLibraryError(err instanceof Error ? err.message : "Video list unavailable");
@@ -46,6 +50,11 @@ export default function Home() {
     setChosen(file);
   }
 
+  function chooseDemoUpload(scenarioId: string) {
+    setPendingScenario(scenarioId);
+    picker.current?.click();
+  }
+
   function onFileChange(event: ChangeEvent<HTMLInputElement>) {
     chooseFile(event.target.files?.[0]);
     event.target.value = "";
@@ -55,8 +64,9 @@ export default function Home() {
     if (!chosen || busy) return;
     setBusy(true);setError("");setMessage("");
     try {
-      const created = await uploadVideo(chosen);
+      const created = await uploadVideo(chosen, pendingScenario);
       setChosen(null);
+      setPendingScenario(null);
       await reload();
       setSelected(created);
       setMessage(`Uploaded ${created.name}. Select it for optional SAM tracking. Use tracking and reviewer-configured rules to inspect potential hazards.`);
@@ -76,9 +86,12 @@ export default function Home() {
     <div className="container">
       <div className="replay-navigation"><Link href="/replay" className="button button-secondary evidence-link">Explore synthetic replay →</Link><span>Offline rule evaluation, no model credits</span></div>
       <section className="hero"><div className="eyebrow">VISUAL SAFETY INTELLIGENCE • RULE ENGINE</div><h1>Capture the scene.<br /><span>Understand what happened.</span></h1><p>Upload or record authorized workplace footage. Capture and upload short authorized clips, then optionally analyze people and forklifts with hosted SAM 3.1. Then configure a review zone and evaluate potential hazard conditions without relying on generated claims.</p></section>
+      <div className="sceneops-gallery-panel panel">
+        <DemoLibrary scenarios={scenarios} videos={videos} selectedId={selected?.id ?? null} onSelectVideo={setSelected} onImport={chooseDemoUpload}/>
+      </div>
       <div className="workspace">
         <div className="column">
-          <section className="panel"><div className="section-heading"><div><span className="eyebrow">01 / INGEST</span><h2>Upload a video</h2></div><span className="pill">MP4 · MOV · WebM</span></div>
+          <section className="panel"><div className="section-heading"><div><span className="eyebrow">01 / INGEST</span><h2>{pendingScenario ? "Add a video to selected demo" : "Upload a video"}</h2></div><span className="pill">MP4 · MOV · WebM</span></div>
             <div className="dropzone" onClick={() => picker.current?.click()} role="button" tabIndex={0} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); picker.current?.click(); } }}>
               <div className="upload-icon">↑</div><strong>{chosen ? chosen.name : "Select a short video"}</strong><span>{chosen ? `${(chosen.size / 1024 / 1024).toFixed(1)} MiB ready` : "Max 100 MiB · MP4, MOV or WebM"}</span>
             </div>
@@ -92,7 +105,15 @@ export default function Home() {
         <section className="panel library-panel"><div className="section-heading"><div><span className="eyebrow">02 / REVIEW</span><h2>Video workspace</h2></div><button className="small-link" type="button" onClick={() => void reload()}>Refresh</button></div>
           <div className="player-wrap">
             {selected ? (
-              <TrackingViewer key={selected.id} video={selected} />
+              <TrackingViewer key={selected.id} video={selected} initialRule={((): RuleSpec | undefined => {
+                const scenario = scenarios.find(s => s.id === selected.scenario_id);
+                if (!scenario) return undefined;
+                return {name: scenario.title, rule_type: scenario.rule_type,
+                  concept: scenario.rule_concept, min_duration_seconds: scenario.duration,
+                  max_observation_gap_frames: 2,
+                  zone: {name: scenario.title, x_min: scenario.zone[0], y_min: scenario.zone[1],
+                    x_max: scenario.zone[2], y_max: scenario.zone[3]}};
+              })()}/>
             ) : (
               <div className="video-empty-state" aria-live="polite">
                 {libraryLoading ? (

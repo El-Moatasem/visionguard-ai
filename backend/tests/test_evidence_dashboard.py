@@ -25,7 +25,8 @@ def test_read_only_replay_and_three_cases():
     result = client.get("/api/v1/replay/scenarios")
     assert result.status_code == 200
     assert result.json()["provenance"] == "synthetic_fixture"
-    assert len(result.json()["items"]) == 3
+    assert len(result.json()["items"]) >= 6
+    assert {"parking-car-dwell", "retail-cart-aisle", "construction-zone-entry"}.issubset({x["id"] for x in result.json()["items"]})
     expected = {
         "warehouse-copresence": (True, False),
         "occlusion-review": (True, True),
