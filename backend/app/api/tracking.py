@@ -1,5 +1,6 @@
 """Local research/demo only. Triggers billable hosted Meta SAM 3.1 calls."""
 from fastapi import APIRouter, BackgroundTasks, HTTPException
+from pydantic import BaseModel, ConfigDict, Field
 
 from backend.app.services.tracking_jobs import (
     TrackingError,
@@ -13,15 +14,20 @@ from backend.app.services.tracking_jobs import (
 
 router = APIRouter(prefix="/api/v1", tags=["object tracking"])
 
+class TrackingStartRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    concepts: list[str] = Field(min_length=1, max_length=3)
+
+
 
 def _bad(exc: TrackingError) -> HTTPException:
     return HTTPException(status_code=exc.status_code, detail=str(exc))
 
 
 @router.post("/videos/{video_id}/tracking-jobs", status_code=202)
-async def start_tracking(video_id: str, background_tasks: BackgroundTasks):
+async def start_tracking(video_id: str, background_tasks: BackgroundTasks, request: TrackingStartRequest | None = None):
     try:
-        job = create_job(video_id)
+        job = create_job(video_id, request.concepts if request is not None else None)
     except TrackingError as exc:
         raise _bad(exc) from exc
     background_tasks.add_task(process_job, job["id"])

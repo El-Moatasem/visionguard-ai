@@ -88,7 +88,7 @@ def list_videos(limit: int = 30) -> list[dict[str, Any]]:
     return sorted(videos, key=lambda x: x.get("created_at", ""), reverse=True)[:limit]
 
 
-async def save_video(file: UploadFile) -> dict[str, Any]:
+async def save_video(file: UploadFile, scenario: dict[str, Any] | None = None) -> dict[str, Any]:
     root = storage_dir()
     root.mkdir(parents=True, exist_ok=True)
     video_id = uuid.uuid4().hex
@@ -127,6 +127,9 @@ async def save_video(file: UploadFile) -> dict[str, Any]:
             "sha256": digest.hexdigest(),
             "created_at": datetime.now(timezone.utc).isoformat(),
             "status": "stored",
+            "library_source": "demo" if scenario else "upload",
+            "scenario_id": scenario["id"] if scenario else None,
+            "suggested_concepts": list(scenario["concepts"]) if scenario else [],
             "sam_compatible_container": ext in {".mp4", ".mov"},
             "note": "Container format alone does not guarantee SAM-compatible codec; verify before model calls.",
             "file_url": f"/api/v1/videos/{video_id}/file",

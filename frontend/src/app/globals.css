@@ -105,3 +105,28 @@
   .video-empty-actions { width: 100%; flex-direction: column; }
   .video-empty-actions .button { width: 100%; }
 }
+
+/* SceneOps: unified demo and upload library. All imagery is generated from installed videos. */
+.sceneops-gallery-panel{margin-bottom:20px}
+.sceneops-filters{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin:14px 0}
+.sceneops-demo-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.sceneops-demo{border:1px solid #39525a;border-radius:12px;overflow:hidden;background:#0e232c;min-width:0}
+.sceneops-demo.is-selected{border-color:#45d9b7}
+.sceneops-demo-media{width:100%;height:118px;background:linear-gradient(120deg,#173a43,#0b1a25);overflow:hidden}
+.sceneops-demo-media video{width:100%;height:100%;object-fit:cover}
+.sceneops-demo-placeholder{display:grid;place-items:center;height:100%;font-size:42px;font-weight:800;opacity:.3;color:#8bdaca}
+.sceneops-demo-copy{padding:13px;display:grid;gap:7px}
+.sceneops-demo-copy strong{font-size:13px}
+.sceneops-demo-copy span{font-size:12px;line-height:1.5;color:#a8c0ca;min-height:36px}
+.sceneops-demo-copy small{color:#84c9bd;font-size:11px}
+.sceneops-demo-actions{display:flex;flex-wrap:wrap;gap:6px}.sceneops-demo-actions .button{font-size:11px;padding:8px}
+.sceneops-heading{font-size:15px;margin:20px 0 10px}.sceneops-heading span{font-size:12px;color:#90aaba;margin-left:6px}
+.sceneops-timeline{margin:10px 0;position:relative;height:26px;border-radius:5px;background:#213640}
+.sceneops-timeline button{position:absolute;top:3px;bottom:3px;min-width:7px;border:0;border-radius:3px;background:#df8a66;opacity:.85;padding:0}
+.sceneops-timeline button.review{background:#8da9de}
+.sceneops-timeline button:focus-visible{outline:2px solid white;outline-offset:2px}
+.sceneops-timeline-playhead{position:absolute;top:0;bottom:0;width:2px;background:#f7f7f7;pointer-events:none}
+.sceneops-concepts{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.sceneops-concepts .safety-input{width:auto;flex:1;min-width:150px}
+@media(max-width:1050px){.sceneops-demo-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.sceneops-demo-grid{grid-template-columns:1fr}.sceneops-filters{grid-template-columns:1fr}}

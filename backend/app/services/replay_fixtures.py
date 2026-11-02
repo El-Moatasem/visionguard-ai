@@ -11,6 +11,9 @@ SCENARIOS = {
     "warehouse-copresence": "warehouse-copresence.json",
     "occlusion-review": "occlusion-review.json",
     "clear-aisle": "clear-aisle.json",
+    "parking-car-dwell": "parking-car-dwell.json",
+    "retail-cart-aisle": "retail-cart-aisle.json",
+    "construction-zone-entry": "construction-zone-entry.json",
 }
 
 

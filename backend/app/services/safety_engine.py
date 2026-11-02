@@ -61,6 +61,54 @@ def _inside(point: tuple[float, float], rule: RuleSpec) -> bool:
     return z.x_min <= x <= z.x_max and z.y_min <= y <= z.y_max
 
 
+
+def _evaluate_entry_rule(observations: dict[tuple[str, int], dict[str, Any]],
+                         rule: RuleSpec, fps: float) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Observed outside -> inside transitions only; uncertain transitions are review-only."""
+    tracks: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for item in observations.values():
+        if item["concept"] == rule.concept:
+            tracks[item["track_id"]].append(item)
+    events: list[dict[str, Any]] = []
+    reviews: list[dict[str, Any]] = []
+    minimum_inside = max(1, math.ceil(rule.min_duration_seconds * fps - 1e-9))
+    for track_id, points in sorted(tracks.items()):
+        points.sort(key=lambda x: x["frame"])
+        for index in range(1, len(points)):
+            outside, inside = points[index-1], points[index]
+            if _inside(outside["point"], rule) or not _inside(inside["point"], rule):
+                continue
+            # Crossing is only established by adjacent source frames in the same fragment.
+            verified = (inside["frame"] == outside["frame"] + 1 and
+                        outside["fragment"] == inside["fragment"])
+            confirmed = [inside]
+            for next_point in points[index+1:]:
+                if (next_point["frame"] != confirmed[-1]["frame"] + 1 or
+                    next_point["fragment"] != confirmed[-1]["fragment"] or
+                    not _inside(next_point["point"], rule)):
+                    break
+                confirmed.append(next_point)
+            if len(confirmed) < minimum_inside:
+                continue
+            base = {"start_frame": inside["frame"], "end_frame": confirmed[-1]["frame"],
+                    "start_seconds_approx": round(inside["frame"] / fps, 3),
+                    "end_seconds_approx": round(confirmed[-1]["frame"] / fps, 3),
+                    "observed_frames": len(confirmed),
+                    "observed_span_seconds_approx": round(len(confirmed) / fps, 3),
+                    "observed_coverage_ratio": 1.0, "actor_tracks": [track_id],
+                    "actor_fragments": [inside["fragment"]],
+                    "contains_missing_observations": not verified,
+                    "identity_continuity": ("observed_adjacent_transition" if verified else "unverified"),
+                    "reason": ("Observed outside-to-inside zone transition" if verified else
+                               "Possible zone entry across missing observations; exact crossing unverified")}
+            if verified:
+                events.append({"event_id": f"entry:{track_id}:{inside['frame']}",
+                               "status": "potential_hazard", **base})
+            else:
+                reviews.append({"event_id": f"review:entry:{track_id}:{inside['frame']}",
+                                "status": "needs_review", **base})
+    return events, reviews
+
 def evaluate_tracking(report: dict[str, Any], rule: RuleSpec) -> dict[str, Any]:
     """Evaluate observed rule matches; keep uncertain temporal associations separate.
 
@@ -86,7 +134,7 @@ def evaluate_tracking(report: dict[str, Any], rule: RuleSpec) -> dict[str, Any]:
         concept, frame = raw.get("concept"), raw.get("frame")
         source = raw.get("track_id")
         fragment = raw.get("fragment_id")
-        if (concept not in ("person", "forklift") or not isinstance(frame, int)
+        if (concept not in {"person", "forklift", "car", "shopping_cart", "cardboard_box", "excavator"} or not isinstance(frame, int)
                 or isinstance(frame, bool) or frame < 0 or not isinstance(source, str)
                 or not source.startswith(f"{concept}:") or not isinstance(fragment, str)
                 or not fragment.startswith(f"{source}#")):
@@ -103,7 +151,7 @@ def evaluate_tracking(report: dict[str, Any], rule: RuleSpec) -> dict[str, Any]:
     for key in boundaries:
         seen.pop(key, None)
 
-    by_frame: dict[int, dict[str, set[str]]] = defaultdict(lambda: {"person": set(), "forklift": set()})
+    by_frame: dict[int, dict[str, set[str]]] = defaultdict(lambda: defaultdict(set))
     all_observations: dict[tuple[str, int], dict[str, Any]] = seen
     for obs in seen.values():
         if _inside(obs["point"], rule):
@@ -115,10 +163,14 @@ def evaluate_tracking(report: dict[str, Any], rule: RuleSpec) -> dict[str, Any]:
         if rule.rule_type == "person_in_zone":
             for person in sorted(people):
                 matches[person].append(frame)
-        else:
+        elif rule.rule_type == "person_and_forklift_in_zone":
             for person in sorted(people):
                 for forklift in sorted(forklifts):
                     matches[f"{person}|{forklift}"].append(frame)
+        elif rule.rule_type == "object_in_zone":
+            for track_id in sorted(by_frame[frame][rule.concept]):
+                matches[track_id].append(frame)
+        # object_zone_entry handled below with explicit outside->inside evidence
 
     required_frames = max(1, math.ceil(rule.min_duration_seconds * fps - 1e-9))
     events: list[dict[str, Any]] = []
@@ -172,7 +224,8 @@ def evaluate_tracking(report: dict[str, Any], rule: RuleSpec) -> dict[str, Any]:
                     "actor_tracks": actors,
                     "actor_fragments": sorted({all_observations[(actor, first)]["fragment"] for actor in actors}),
                     "reason": ("Person foot-point observed in reviewer-defined zone" if rule.rule_type == "person_in_zone"
-                               else "Person foot-point and forklift center observed in the same zone and frames"),
+                               else "Person foot-point and forklift center observed in the same zone and frames" if rule.rule_type == "person_and_forklift_in_zone"
+                               else f"{rule.concept} image-space center observed inside reviewer-defined zone"),
                 })
             start, end = chunk[0], chunk[-1]
             has_gap = len(chunk) != end - start + 1
@@ -196,6 +249,9 @@ def evaluate_tracking(report: dict[str, Any], rule: RuleSpec) -> dict[str, Any]:
                     "reason": "Observed samples could match the rule, but missing observations or fragment changes prevent verified continuity",
                 })
 
+    if rule.rule_type == "object_zone_entry":
+        events, review_items = _evaluate_entry_rule(all_observations, rule, fps)
+
     # Localize gaps to actors whose observations near the gap are in/near the zone.
     # A distant disappearing forklift is not relevant to a restricted-zone alert.
     uncertainties: list[dict[str, Any]] = []
@@ -207,6 +263,8 @@ def evaluate_tracking(report: dict[str, Any], rule: RuleSpec) -> dict[str, Any]:
         if not isinstance(source, str) or not isinstance(before, int) or not isinstance(after, int) or after <= before:
             continue
         endpoints = [all_observations.get((source, frame)) for frame in (before, after)]
+        if rule.rule_type in {"object_in_zone", "object_zone_entry"} and not source.startswith(f"{rule.concept}:"):
+            continue
         if not any(obs is not None and _near_zone(obs["point"], rule) for obs in endpoints):
             continue
         item = {"track_id": source, "after_frame": before, "before_frame": after,
@@ -230,6 +288,6 @@ def evaluate_tracking(report: dict[str, Any], rule: RuleSpec) -> dict[str, Any]:
         "frames_with_zone_observations": len(by_frame),
         "required_observed_frame_span": required_frames,
         "time_alignment": "approximate",
-        "method": "Observed person foot-point / forklift box center; seconds-based threshold; short gaps are review-only and NEVER interpolated",
+        "method": "Observed person foot-point / object box center; observed-frame duration and zone-transition rules; unobserved gaps are review-only, never interpolated",
         "disclaimer": "Research screening only. A match is not certified danger; short gaps do not prove occupancy, motion, distance or identity continuity. No match does not establish safety.",
     }
