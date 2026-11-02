@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.api.videos import router as videos_router
+from backend.app.api.video_preparation import router as video_preparation_router
 from backend.app.api.tracking import router as tracking_router
 from backend.app.api.safety import router as safety_router
 from backend.app.api.evidence import router as evidence_router
@@ -30,6 +31,7 @@ app.add_middleware(
 REPLAY_ONLY = os.getenv("VISIONGUARD_REPLAY_ONLY", "0") == "1"
 if not REPLAY_ONLY:
     app.include_router(videos_router)
+    app.include_router(video_preparation_router)
     app.include_router(tracking_router)
     app.include_router(safety_router)
     app.include_router(evidence_router)

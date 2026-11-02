@@ -9,6 +9,10 @@ export type VideoItem = {
   library_source?: "upload" | "demo";
   scenario_id?: string | null;
   suggested_concepts?: string[];
+  analysis_source_video_id?: string;
+  analysis_source_sha256?: string;
+  analysis_start_seconds?: number;
+  analysis_duration_seconds?: number;
   sam_compatible_container: boolean;
   note: string;
   file_url: string;
@@ -33,6 +37,13 @@ export async function uploadVideo(file: File, scenarioId?: string | null): Promi
   form.append("file", file, file.name);
   return readResponse<VideoItem>(await fetch(`${API}/videos${scenarioId ? `?scenario_id=${encodeURIComponent(scenarioId)}` : ""}`, { method: "POST", body: form }));
 }
+export async function prepareVideoForSam(videoId: string, startSeconds: number, durationSeconds: number): Promise<VideoItem> {
+  return readResponse<VideoItem>(await fetch(`${API}/videos/${encodeURIComponent(videoId)}/prepare-for-sam`, {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({start_seconds: startSeconds, duration_seconds: durationSeconds}),
+  }));
+}
+
 export async function fetchVideos(): Promise<VideoItem[]> {
   const data = await readResponse<{ items: VideoItem[] }>(
     await fetch(`${API}/videos`, { cache: "no-store" })
