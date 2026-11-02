@@ -29,6 +29,8 @@ class RuleSpec(StrictModel):
     rule_type: Literal["person_in_zone", "person_and_forklift_in_zone", "object_in_zone", "object_zone_entry"]
     zone: NormalizedZone
     concept: str | None = None
+    # Reviewer-identified operator tracks; applies ONLY to forklift co-presence.
+    excluded_operator_track_ids: list[str] = Field(default_factory=list, max_length=30)
 
     @model_validator(mode="after")
     def validate_concept(self):
@@ -38,6 +40,14 @@ class RuleSpec(StrictModel):
             self.concept = normalize_concept(self.concept)
         elif self.concept is not None:
             raise ValueError("Legacy rule types cannot select a different concept")
+        if self.excluded_operator_track_ids:
+            if self.rule_type != "person_and_forklift_in_zone":
+                raise ValueError("Operator track exclusions apply only to forklift co-presence")
+            if len(set(self.excluded_operator_track_ids)) != len(self.excluded_operator_track_ids):
+                raise ValueError("Operator track exclusions must be unique")
+            if any(not (track.startswith("person:") and 7 < len(track) <= 120)
+                   for track in self.excluded_operator_track_ids):
+                raise ValueError("Operator tracks must have validated person: identifiers")
         return self
     min_duration_seconds: float = Field(default=0.5, gt=0, le=30, allow_inf_nan=False)
     # Missing source frame indices allowed for a *provisional* association, never proof of visibility.

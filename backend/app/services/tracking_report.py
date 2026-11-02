@@ -10,7 +10,6 @@ import math
 from collections import defaultdict
 from typing import Any
 from backend.app.services.sceneops_concepts import normalize_concept
-from backend.app.services.sceneops_concepts import normalize_concept
 
 
 class TrackingReportError(ValueError):

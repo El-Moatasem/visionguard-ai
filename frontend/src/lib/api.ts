@@ -159,7 +159,7 @@ export async function fetchTrackingResult(jobId: string): Promise<TrackingReport
 
 export type RuleType = "person_in_zone" | "person_and_forklift_in_zone" | "object_in_zone" | "object_zone_entry";
 export type SafetyZone = {name: string; x_min: number; y_min: number; x_max: number; y_max: number};
-export type RuleSpec = {name: string; rule_type: RuleType; min_duration_seconds: number; max_observation_gap_frames: number; zone: SafetyZone; concept?: string | null};
+export type RuleSpec = {name: string; rule_type: RuleType; min_duration_seconds: number; max_observation_gap_frames: number; zone: SafetyZone; excluded_operator_track_ids?: string[]; concept?: string | null};
 export type RuleDraft = {name: string; rule_type: RuleType | "unsupported"; min_duration_seconds: number; rationale: string};
 export type SafetyEvent = {
   event_id: string; status: "potential_hazard" | "needs_review"; start_frame: number; end_frame: number;
@@ -174,6 +174,10 @@ export type SafetyReviewItem = Partial<SafetyEvent> & {
   reason: string; track_id?: string;
 };
 export type SafetyEvaluation = {
+  operator_candidate_count?: number;
+  operator_candidate_track_ids?: string[];
+  operator_excluded_count?: number;
+  operator_excluded_track_ids?: string[];
   tracking_job_id: string; rule: RuleSpec;
   outcome: "potential_hazard" | "needs_review" | "no_rule_match_observed";
   event_count: number; events: SafetyEvent[]; review_count: number;

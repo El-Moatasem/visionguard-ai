@@ -10,6 +10,7 @@ from collections import defaultdict
 from typing import Any
 
 from backend.app.services.safety_rules import RuleSpec
+from backend.app.services.sceneops_concepts import CONCEPT_PROMPTS
 
 
 class SafetyEvaluationError(ValueError):
@@ -60,6 +61,26 @@ def _inside(point: tuple[float, float], rule: RuleSpec) -> bool:
     z = rule.zone
     return z.x_min <= x <= z.x_max and z.y_min <= y <= z.y_max
 
+
+
+def _likely_operator(person_box: dict[str, float], forklift_box: dict[str, float]) -> bool:
+    """Conservative box-geometry candidate, NOT an operator identity verdict.
+
+    Require strong actual containment and elevated feet. A ground-level
+    pedestrian who happens to overlap a forklift cannot be removed merely
+    because of bounding-box overlap. Candidates become review items below.
+    """
+    px1, py1, px2, py2 = (float(person_box[key]) for key in ("left", "top", "right", "bottom"))
+    fx1, fy1, fx2, fy2 = (float(forklift_box[key]) for key in ("left", "top", "right", "bottom"))
+    pw, ph, fh = px2 - px1, py2 - py1, fy2 - fy1
+    if min(pw, ph, fh) <= 0:
+        return False
+    overlap_w = max(0.0, min(px2, fx2) - max(px1, fx1))
+    overlap_h = max(0.0, min(py2, fy2) - max(py1, fy1))
+    enclosed = (overlap_w * overlap_h) / (pw * ph)
+    feet_raised = py2 <= fy2 - 0.20 * fh
+    feet_in_vehicle = fy1 + 0.12 * fh <= py2
+    return enclosed >= 0.70 and feet_raised and feet_in_vehicle
 
 
 def _evaluate_entry_rule(observations: dict[tuple[str, int], dict[str, Any]],
@@ -134,7 +155,7 @@ def evaluate_tracking(report: dict[str, Any], rule: RuleSpec) -> dict[str, Any]:
         concept, frame = raw.get("concept"), raw.get("frame")
         source = raw.get("track_id")
         fragment = raw.get("fragment_id")
-        if (concept not in {"person", "forklift", "car", "shopping_cart", "cardboard_box", "excavator"} or not isinstance(frame, int)
+        if (concept not in CONCEPT_PROMPTS or not isinstance(frame, int)
                 or isinstance(frame, bool) or frame < 0 or not isinstance(source, str)
                 or not source.startswith(f"{concept}:") or not isinstance(fragment, str)
                 or not fragment.startswith(f"{source}#")):
@@ -147,7 +168,7 @@ def evaluate_tracking(report: dict[str, Any], rule: RuleSpec) -> dict[str, Any]:
         if key in seen and (seen[key]["point"] != p or seen[key]["fragment"] != fragment):
             boundaries[key] = True
         else:
-            seen[key] = {"point": p, "fragment": fragment, "concept": concept, "track_id": source, "frame": frame}
+            seen[key] = {"point": p, "fragment": fragment, "concept": concept, "track_id": source, "frame": frame, "box": raw["box"]}
     for key in boundaries:
         seen.pop(key, None)
 
@@ -157,6 +178,11 @@ def evaluate_tracking(report: dict[str, Any], rule: RuleSpec) -> dict[str, Any]:
         if _inside(obs["point"], rule):
             by_frame[obs["frame"]][obs["concept"]].add(obs["track_id"])
 
+    # Automatic geometry is a cautious operator CANDIDATE, not positive ID.
+    # Only the forklift co-presence rule excludes candidates; person-in-zone
+    # and generic object rules retain their original semantics.
+    operator_candidates: dict[str, set[int]] = defaultdict(set)
+    confirmed_exclusions: dict[str, set[int]] = defaultdict(set)
     matches: dict[str, list[int]] = defaultdict(list)
     for frame in sorted(by_frame):
         people, forklifts = by_frame[frame]["person"], by_frame[frame]["forklift"]
@@ -165,6 +191,17 @@ def evaluate_tracking(report: dict[str, Any], rule: RuleSpec) -> dict[str, Any]:
                 matches[person].append(frame)
         elif rule.rule_type == "person_and_forklift_in_zone":
             for person in sorted(people):
+                if person in rule.excluded_operator_track_ids:
+                    confirmed_exclusions[person].add(frame)
+                    continue
+                person_obs = seen.get((person, frame))
+                if person_obs and any(
+                    (fork_obs := seen.get((forklift, frame))) is not None
+                    and _likely_operator(person_obs["box"], fork_obs["box"])
+                    for forklift in forklifts
+                ):
+                    operator_candidates[person].add(frame)
+                    continue
                 for forklift in sorted(forklifts):
                     matches[f"{person}|{forklift}"].append(frame)
         elif rule.rule_type == "object_in_zone":
@@ -274,6 +311,18 @@ def evaluate_tracking(report: dict[str, Any], rule: RuleSpec) -> dict[str, Any]:
                 "end_seconds_approx": round(after / fps, 3),
                 "status": "needs_review", "reason": "Missing observations near monitored zone; identity and occupancy unverified"}
         uncertainties.append(item)
+    # Keep geometry-based exclusions visibly auditable. Human-confirmed
+    # exclusions are counted separately and don't require extra review.
+    for track_id, frames in sorted(operator_candidates.items()):
+        start_frame, end_frame = min(frames), max(frames)
+        review_items.append({
+            "event_id": f"review:operator-candidate:{track_id}:{start_frame}-{end_frame}",
+            "status": "needs_review", "start_frame": start_frame, "end_frame": end_frame,
+            "start_seconds_approx": round(start_frame / fps, 3),
+            "end_seconds_approx": round(end_frame / fps, 3),
+            "observed_frames": len(frames), "actor_tracks": [track_id],
+            "reason": "Possible seated forklift operator based on box overlap and raised feet; excluded from automated co-presence events pending reviewer confirmation. Check for nearby pedestrians.",
+        })
     # Return uncertainties alongside events, not hidden behind a single outcome.
     review_items.extend(uncertainties)
     events.sort(key=lambda e: (e["start_frame"], e["event_id"]))
@@ -284,6 +333,10 @@ def evaluate_tracking(report: dict[str, Any], rule: RuleSpec) -> dict[str, Any]:
         "event_count": len(events), "events": events,
         "review_count": len(review_items), "review_items": review_items,
         "uncertainty_count": len(uncertainties), "uncertainties": uncertainties,
+        "operator_candidate_count": len(operator_candidates),
+        "operator_candidate_track_ids": sorted(operator_candidates),
+        "operator_excluded_count": len(confirmed_exclusions),
+        "operator_excluded_track_ids": sorted(confirmed_exclusions),
         "has_unresolved_review_items": bool(review_items),
         "frames_with_zone_observations": len(by_frame),
         "required_observed_frame_span": required_frames,
