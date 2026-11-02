@@ -1,49 +1,78 @@
 # VisionGuard AI
 
-> **Performance/testing build (Nov 1, 2026):** SAM jobs now run in a background worker thread, default mask conversion is lightweight, `one_bit` masks reduce stream size, and multi-video preflight testing is available. Local offline backend tests have passed; **live SAM end-to-end performance is not yet verified by this package**. See [performance and multi-video testing](docs/13-performance-and-multi-video-testing.md).
+**Turn short workplace video into explainable observations, configurable rule matches, and human-reviewable evidence.**
 
-**Video → verifiable safety observations → human-reviewed evidence.**
+[![Meta SAM 3.1](https://img.shields.io/badge/Visual%20tracking-Meta%20SAM%203.1-38cdb2)](https://dev.meta.ai/docs/cookbook/sam-api-basics)
+[![Muse Spark](https://img.shields.io/badge/Rule%20drafting-Muse%20Spark-7cb9e8)](https://dev.meta.ai/docs/cookbook/quickstart-chat-completions)
+![Status](https://img.shields.io/badge/Status-research%20MVP-f1ba75)
+![License](https://img.shields.io/badge/License-MIT-9eafbc)
 
-**Explainable visual safety intelligence powered by Meta SAM 3.1 + Muse Spark**
+**Meta Global AI Developer Hackathon 2026 · Indie track**
 
-**Meta Global AI Developer Hackathon 2026** · Indie Developer · Push the Frontier
+> **Project status — November 2, 2026:** The local application has successfully completed a hosted SAM 3.1 analysis of a short warehouse clip, with **person and forklift** bounding boxes displayed over video playback. This demonstrates a working integration on one test clip, **not** calibrated detection accuracy or reliability across videos. Deterministic rules, evidence review, and synthetic replay are implemented; further live end-to-end scenario validation remains in progress.
 
-> **Current stage: Five core milestones packaged, including evidence dashboard and synthetic replay.** FastAPI upload/list/playback and a mobile-first Next.js frontend are included. This research prototype reports observed potential rule matches, localized uncertainty, and human review decisions; **not** certified danger, real-time monitoring, or safety compliance. Live remote Meta calls were not executed during package generation.
+## VisionGuard AI, powered by SceneOps
 
-VisionGuard aims to help safety reviewers analyze short, authorized workplace videos. The proposed workflow is: detect/track people and vehicles using SAM 3.1; interpret reviewer-specified monitoring rules with Muse Spark; evaluate temporal events deterministically; show evidence with timestamped, human-reviewable incident reports. It **must not** be used as a replacement for trained safety professionals or real-time emergency protection.
+![VisionGuard AI / SceneOps architecture](docs/assets/visionguard-sceneops-architecture.png)
 
-## Hackathon compliance (read first)
+**VisionGuard AI** is the safety-review application: ingest footage, inspect tracked observations, define monitored zones, evaluate rules, and review evidence. **SceneOps** is the name for the reusable **video-to-rule architecture inside the current application**—not a separate shipped library, model, or product.
 
-- The participant guide lists **Oct 27–Nov 4, 2026** as the building period. This reference starter was generated **Oct 26, 2026**, before that period. **Do not claim earlier code was created during the event.** Confirm permitted usage with organizers, develop and document your actual original hackathon contributions within the permitted period, and disclose any reused material.
-- Official submission requires a **public** repository and a **3-minute demo video** showing specific work built during the hackathon.
-- Use only videos, assets and datasets you have the rights to use; follow applicable privacy and safety laws.
-- Your application originally mentioned a different idea: confirm with Cerebral Valley that switching final submissions is allowed.
-- References: [participant event](https://cerebralvalley.ai/e/meta-ai-developer-hackathon), [SAM API basics](https://dev.meta.ai/docs/cookbook/sam-api-basics), [Muse chat quickstart](https://dev.meta.ai/docs/cookbook/quickstart-chat-completions).
+The long-term direction is to reuse SceneOps for parking, retail, and construction workflows. **Those industry modules and generic object concepts are planned, not implemented in the current MVP.**
 
-## Scope by stage
+### What works today
 
-| Period | Planned milestone | Implementation status |
-|---|---|---|
-| Day 1 | Model account, Muse ping, SAM video tracking outputs | **Starter code included; real API validation pending** |
-| Day 2 | Upload API, Next.js interface, video playback | **Implemented in `feature/video-ingestion`; validate locally** |
-| Days 3–4 | SAM tracks, fragment uncertainty + approximate box overlays | **Implemented in `feature/object-tracking`; live verification pending** |
-| Days 5–6 | Muse rule translation + deterministic event logic | **Implemented in `feature/safety-rule-engine`; live validation pending** |
-| Days 7–8 | Evidence snapshots, reviewer decisions, report export, synthetic replay | **Implemented in `feature/evidence-dashboard`; real-video validation pending** |
-| Days 9–10 | Benchmark, demo, submission | Planned (compress to fit official dates) |
+| Capability | Current scope |
+| --- | --- |
+| Video ingest & playback | Local MP4/MOV/WebM uploads, a selectable **Recent Uploads** list, browser playback, and camera capture where supported. WebM must be converted before SAM inference. |
+| Hosted visual tracking | Explicit, billable Meta SAM 3.1 requests for **`person`** and **`forklift`**; progressive **provisional** box previews; final normalized tracks and gaps. |
+| Zone-based evaluation | Reviewer-defined rectangle; `person_in_zone` and `person_and_forklift_in_zone` rules; observed-duration thresholds. Runs locally **without** a model call. |
+| Muse Spark | Optional, billable natural-language drafting of a *supported* rule; human approval is required. Unsupported requests remain unsupported. |
+| Uncertainty | Missing frames, approximate timing, and unverified track continuity are surfaced as review candidates rather than invented observations. |
+| Evidence & review | Local evidence snapshots, source hashes, sampled boxes, reviewer decisions, and JSON / printable HTML exports. |
+| Synthetic replay | Offline fixtures for co-presence, occlusion review, and clear aisle; distinctly labeled **synthetic**, not real video or actual SAM output. |
 
-Full stage details live in [`docs/`](docs/).
+**Not implemented:** continuous live-camera inference, collision prediction, calibrated distance/speed estimates, certified danger detection, generalized SceneOps concepts, a pre-seeded multi-industry video gallery, or production authentication. Uploads currently appear automatically in **Recent Uploads**; a unified curated demo gallery is a **planned UI enhancement**.
 
-## Prerequisites
+## How it works
 
-- Python 3.11+ recommended; Git; a terminal; internet for remote API calls
-- Meta Model API account and `MODEL_API_KEY` for live tests (required only for the `muse` and `sam` commands)
-- Short, properly licensed H.264 MP4 or MOV clip to test the video workflow
-- **No camera, local CUDA GPU, or special device is necessary** when using the hosted Meta API
-- The Day 1 `sam` test uploads video to Meta. Do not use confidential or unconsented video
+```text
+Authorized MP4/MOV upload ──► Local video store + SHA-256
+          │
+          └──► Explicit "Analyze with SAM" (billable)
+                        │
+                  Meta SAM 3.1
+             person + forklift requests
+                        │
+          Provisional streamed box previews
+                        │
+              Final tracking report
+           boxes • track fragments • gaps
+                        │
+             Reviewer-defined floor zone
+                   + temporal rule
+                        │
+          Deterministic, local evaluation
+                        │
+         ┌──────────────┴───────────────┐
+  Observed potential match       Needs human review
+         └──────────────┬───────────────┘
+                        │
+             Evidence snapshot +
+          reviewer decisions + export
+```
 
-## Quick start — macOS/Linux
+**Detection is not a safety verdict.** A person and forklift observed in the same drawn zone meet an image-space rule condition; this does not establish physical proximity, an imminent collision, or whether the detected person is the seated operator. Missing observations are not filled in or assumed safe. Timestamps are approximate (`frame / FPS`).
 
-From your repository root:
+## Quick start
+
+### Requirements
+
+- Python **3.11+**, Node.js **20.9+**, Yarn Classic or npm, and Git.
+- **FFmpeg and FFprobe** available on your `PATH` for billable video preflight and demo-clip preparation.
+- A Meta Models API key (`MODEL_API_KEY`) for optional live SAM/Muse requests. **Offline tests and synthetic replay do not require one.**
+- Authorized, appropriately licensed footage; no confidential or unconsented recordings.
+
+**1. Set up the backend** (from the repository root):
 
 ```bash
 python3 -m venv .venv
@@ -53,246 +82,186 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Edit `.env` locally and set your real key:
+Edit `.env` locally if you intend to use Meta:
 
 ```dotenv
-MODEL_API_KEY=YOUR_REAL_KEY_HERE
+MODEL_API_KEY=YOUR_META_MODEL_API_KEY
+SAM_CONCURRENT_CONCEPTS=0
 ```
 
-> `.env` is gitignored. Never commit an API key, user video, logs containing sensitive data, or raw model output with private content. Setting a billing **notification** is not necessarily a hard spending cap.
-
-### Start FastAPI (offline, no API credits)
+On a Mac using **MacPorts**, ensure FFprobe is visible (the package installer must be installed separately first):
 
 ```bash
-uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
+export PATH="/opt/local/bin:/opt/local/sbin:$PATH"
+command -v ffprobe
+ffprobe -version
 ```
 
-Open http://127.0.0.1:8000/docs, or test in another terminal:
+Install FFmpeg/FFprobe using your operating system's package manager if missing. The preflight **blocks billable tracking** without readable FPS and dimensions.
+
+**2. Start FastAPI** (terminal 1, repository root):
+
+```bash
+source .venv/bin/activate
+python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
+```
+
+**Do not use `--reload` during a billable SAM job.** Reloading can terminate the local worker mid-stream. For a cost-controlled single-concept test, start with `SAM_DEMO_CONCEPTS=person` in front of the command. By default the backend analyzes **both** concepts sequentially; `SAM_CONCURRENT_CONCEPTS=1` enables optional parallel requests after basic integration succeeds.
+
+Check [Swagger API docs](http://127.0.0.1:8000/docs) or:
 
 ```bash
 curl http://127.0.0.1:8000/health
 curl http://127.0.0.1:8000/api/v1/meta/status
 ```
 
-The `/api/v1/meta/status` response checks **whether a key is present**, not whether credentials, account access, or quota are valid.
+The Meta status route checks for a configured key; it does **not** prove account permissions, remaining credits, or model availability.
 
-### Check Meta account with Muse Spark (LIVE, billable)
-
-```bash
-python -m backend.scripts.meta_smoke status  # offline key presence check
-python -m backend.scripts.meta_smoke muse    # LIVE API request, confirms usable credentials
-```
-
-Expected Muse response is typically `ready`. Wording is not a guaranteed exact assertion. Missing key, 401/403, quota, payment or rate-limit errors will be shown in the terminal.
-
-### Upload and track a short clip with SAM 3.1 (LIVE, billable)
-
-1. Put a **licensed/consented** short clip at `samples/warehouse.mp4` (the `samples/` directory is ignored by Git).
-2. Run one noun phrase per model request:
+**3. Start Next.js** (terminal 2):
 
 ```bash
-python -m backend.scripts.meta_smoke sam \
-  --video samples/warehouse.mp4 \
-  --concept person \
-  --concept forklift \
-  --output outputs/day1
+cd frontend
+yarn install --frozen-lockfile
+yarn dev --webpack
 ```
 
-SAM 3.1 receives **two separate** segmentation prompts, one for `person` and one for `forklift`, and the uploaded video file is reused. Testing with an unrelated short video first is okay; choose the noun actually present.
+Open **http://localhost:3000**. The app uses a same-origin Next.js rewrite to proxy backend requests; keep API keys on the server, never in `NEXT_PUBLIC_*` variables.
 
-For a previously uploaded video (copy the `file-...` identifier printed by the first run):
+### Prepare a fast, reproducible clip
+
+SAM demo preflight currently requires: **MP4/MOV**, a supported video codec, **≤25 MiB**, **≤30 seconds**, and **≤1080p / 30 FPS**. The regular upload endpoint allows files up to **100 MiB** but has a *separate* inference limit.
 
 ```bash
-python -m backend.scripts.meta_smoke sam \
-  --file-id file-YOUR-UPLOAD-ID \
-  --concept person \
-  --output outputs/retry
+# Provide your own licensed source video first.
+python -m backend.scripts.prepare_demo_clips \
+  --input samples/warehouse_source.mp4 \
+  --output samples/warehouse_demo_480p.mp4 \
+  --seconds 5 --height 480 --fps 12
 ```
 
-Results are written under `outputs/day1/person/` and `outputs/day1/forklift/`.
-`summary.json` contains real completed parsed bounding boxes and lightweight mask metadata; SVG exports are optional with `--write-masks` and disabled by default for responsiveness.
+**Upload the converted clip to the UI.** The video played in the browser must be the **same file** sent to SAM; converting only the model input would misalign bounding boxes.
 
-Open `summary.json` in a code editor. A completed request with zero matches is **valid**, not proof that the model failed. Inspect `tracks`, `visible_frames`, `box_count` and `mask_count`, and compare with the actual clip. Track IDs from independent concept requests are **not** automatically globally unique; normalize them when combining on Days 3–4.
+### First end-to-end local demo
 
-**Note:** Day 1 limits input file size to 25 MiB as a local cost/speed guard, *not* an official Meta API limit. Use short H.264 video clips. The `meta_sam_parser` package decodes the protocol—do not treat raw output text as ordinary JSON.
+1. Upload and select the prepared video in **Recent Uploads**.
+2. Click **Analyze with SAM (billable)** once. The interface shows phases and may display **provisional** observations before completion.
+3. After **COMPLETED**, inspect boxes, track fragments, and missing-frame gaps. A completed request with **zero detections** is a valid possible result.
+4. In **Safety Intelligence**, choose/draw a zone and evaluate a supported rule. Rule evaluation is **offline and does not consume Meta credits**.
+5. Inspect observed potential matches and separate review items; click an event to seek to its approximate time.
+6. Save an evidence snapshot, record **confirmed / rejected / unresolved** human decisions, and export JSON or HTML.
 
-### Run automated tests (offline)
+**Do not present an observed rule match as a confirmed accident.** The shared-zone rule can also match an operator in the forklift; review the actual frames before interpreting a result.
 
-```bash
-python -m pytest backend/tests -q
-```
+## Demonstrations
 
-The automated suite checks the ingestion, tracking, rule, evidence, review, and synthetic replay endpoints, key secrecy, CLI status, result normalization, missing-frame gaps, and mocked job execution. These tests **do not call Meta** and do not demonstrate SAM's real-world tracking accuracy.
+| Demo | Data source | What it demonstrates |
+| --- | --- | --- |
+| Warehouse person + forklift | **Real local video**, after user-authorized SAM processing | Hosted tracking, boxes, zone-based rule evaluation, and evidence workflow. |
+| Warehouse co-presence | **Synthetic replay fixture** | Positive observed-rule-match path without API costs. |
+| Occlusion review | **Synthetic replay fixture** | Observation gaps and unverified continuity routed for review. |
+| Clear aisle | **Synthetic replay fixture** | Negative control: no invented match when conditions are not observed. |
+| Parking / retail / construction | **Future SceneOps extensions** | New object concepts, rules, data, and validation are required; **not live demos yet**. |
 
-## Repository map
+Use **http://localhost:3000/replay** for the labeled synthetic demonstrations. They use hand-authored coordinates, not recorded footage or actual SAM output. Only real, completed model results should be described as live SAM detections.
+
+## Architecture and repository layout
+
+- **Frontend:** Next.js 16, React 19, TypeScript; upload, browser playback, overlays, rule controls, and evidence review.
+- **Backend:** FastAPI; local file-backed video store, job records, streaming previews, constrained model integration, deterministic evaluation, and evidence exports.
+- **Model boundary:** SAM provides observations; Muse proposes a draft; **neither model is allowed to produce a final safety certification**. The deterministic rule evaluator operates on observed tracking data only.
 
 ```text
 visionguard-ai/
 ├── backend/
 │   ├── app/
-│   │   ├── main.py                 # FastAPI liveness/config endpoints
-│   │   ├── config.py               # model IDs and local .env loading
+│   │   ├── api/                  # video, tracking, safety, evidence, replay routes
 │   │   └── services/
-│   │       ├── muse.py             # live Muse Spark ping
-│   │       └── sam.py              # SAM upload, parse, track summary, SVG output
-│   ├── scripts/meta_smoke.py       # CLI
-│   └── tests/test_day1.py         # offline unit tests
-├── frontend/                       # Next.js mobile-first upload/camera/playback app
-├── docs/                           # stage by stage plan and acceptance gates
-├── benchmarks/                     # annotation example (no actual licensed clips)
-├── var/                            # ignored local uploads, created at runtime
-├── samples/                        # ignored local video inputs
-├── outputs/                        # ignored generated segmentation artifacts
-├── examples/                       # data rights notes
-├── .github/workflows/              # offline GitHub Actions unit tests
-├── requirements.txt
-├── .env.example
-└── LICENSE
+│   │       ├── sam.py             # hosted SAM stream parsing
+│   │       ├── tracking_jobs.py   # local background jobs + previews
+│   │       ├── tracking_report.py # boxes / fragments / gaps
+│   │       ├── safety_engine.py   # deterministic temporal rules
+│   │       ├── evidence_store.py  # local evidence and audit history
+│   │       └── replay_fixtures.py # synthetic scenario loader
+│   ├── scripts/                  # smoke tests and video preparation
+│   └── tests/                    # offline test suite
+├── frontend/                     # Next.js app (Yarn lockfile)
+├── benchmarks/replay/            # labeled synthetic fixtures
+├── docs/                         # implementation and architecture notes
+│   └── assets/                   # README architecture illustration
+├── .github/workflows/            # backend / frontend CI
+├── var/                          # local uploads/jobs/evidence (gitignored)
+├── samples/                      # user-provided footage (gitignored)
+├── outputs/                      # generated model artifacts (gitignored)
+└── .env.example
 ```
 
-## Important architecture choices
+Further technical notes: [tracking pipeline](docs/architecture/object-tracking-pipeline.md), [temporal evaluation](docs/architecture/temporal-evaluation-v2.md), [rule engine](docs/architecture/safety-rule-engine.md), [evidence and replay](docs/architecture/evidence-review-and-replay.md), and [performance / multi-video testing](docs/13-performance-and-multi-video-testing.md).
 
-- Video upload/list/playback endpoints are now included for **local prototype use only**. They are NOT production-safe without authentication and abuse prevention.
-- SAM returns masks and track geometry, not a guarantee of safety compliance, physical distance, or collision prediction.
-- The event engine uses deterministic rules over normalized tracks, with **reviewer-configured** operating zones and explicit uncertainty.
-- Muse Spark can draft a supported rule proposal for human approval but must not override deterministic checks or certify safety conclusions.
-- Preserve provenance: source clip hash, model ID, request timestamp, frame/time indices, rule version, reviewer decision (planned in later stages).
+## API overview
 
-## Deployment recommendation
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /health` | Backend health |
+| `GET /api/v1/meta/status` | Local Meta key-presence check only |
+| `POST /api/v1/videos` | Store an uploaded video |
+| `GET /api/v1/videos` | List recent uploads |
+| `POST /api/v1/videos/{id}/tracking-jobs` | **Explicitly billable** SAM analysis |
+| `GET /api/v1/tracking-jobs/{id}` | Job state, phase and safe diagnostics |
+| `GET /api/v1/tracking-jobs/{id}/preview` | Provisional, read-only observations (may be 404 until ready) |
+| `GET /api/v1/tracking-jobs/{id}/result` | Completed normalized tracking report |
+| `POST /api/v1/rules/interpret` | Optional **billable** Muse rule draft |
+| `POST /api/v1/tracking-jobs/{id}/evaluate` | Offline deterministic safety evaluation |
+| `/api/v1/evidence-reports` | Local evidence snapshots, reviews and exports |
+| `/api/v1/replay/scenarios` | Read-only synthetic benchmarks |
 
-**Current feature:** run locally. **Day 7 or 8:** deploy an API/demo to Render if the application is stable and protected by authentication. **Neon PostgreSQL:** add only after incident persistence is needed (e.g. days 7–8). A SQL database is not video storage; use separate object storage for uploads. Render free instances may sleep and have ephemeral disk; see [`docs/07-deployment.md`](docs/07-deployment.md). For the final judged demo, consider a paid stable service or a local demo plus recording as a reliability fallback.
+All endpoints that store data or trigger Meta inference are intended for **trusted local use**, not an unprotected public deployment.
 
-## Data protection and evaluation
+## Testing and reproducibility
 
-Research/demo only. Do not make safety-critical decisions based on detections. Keep sample footage private and consented. The project will need an evaluation set including hazard events, non-events, occlusions, false positives, and ambiguous situations before making meaningful performance claims.
+```bash
+# Offline backend tests; do not spend model credits
+python -m pytest backend/tests -q
+
+# Local rule fixture check
+python -m backend.scripts.evaluate_fixture
+
+# Frontend checks
+cd frontend
+yarn typecheck
+yarn build
+```
+
+The GitHub Actions workflows run backend tests and frontend typecheck/build. These checks **do not** establish live SAM accuracy, model availability, or safe behavior in a real workplace.
+
+Optional real Meta checks are **billable** and should use short licensed inputs:
+
+```bash
+python -m backend.scripts.meta_smoke muse
+python -m backend.scripts.meta_smoke sam \
+  --video samples/warehouse_demo_480p.mp4 \
+  --concept person --concept forklift \
+  --output outputs/live-check
+```
+
+Single-process background jobs can be interrupted by server restarts and are **not** a durable queue. Mask SVG generation is optional; the normal pipeline avoids expensive full-mask conversion. Progressive preview revisions are **not percentages**.
+
+## Safety, privacy, and deployment
+
+- **Research prototype only:** not certified safety monitoring, emergency response, workplace compliance verification, or continuous real-time surveillance.
+- Keep `.env`, user footage, raw model outputs, local jobs, and reviewer notes out of Git. Verify clip rights and authorization before sending footage to a third-party model API.
+- Local API routes have **no authentication, tenant isolation, or production abuse controls**. Do not publicly expose upload, billable inference, or persistent review endpoints.
+- For an intentionally **public read-only synthetic replay**, start FastAPI with `VISIONGUARD_REPLAY_ONLY=1` and build the frontend with `NEXT_PUBLIC_REPLAY_ONLY=1`. Those flags disable the local upload/paid/review-write routes; verify your deployment configuration independently.
+- Local evidence records preserve source hashes, rule parameters, sampled observations, and appended human decisions. They are **not** independently verified model outputs or tamper-proof audit records.
+- Evaluate positive examples, negative controls, occlusion, model failures, and false positives before making performance claims.
+
+## Hackathon disclosure
+
+This repository includes work from different development stages. **Do not represent pre-event code or third-party assets as originally created during the official hackathon building window.** Identify and demonstrate the work actually performed for the event, disclose reused components where required, and verify the organizer's current submission rules. This project is intended for a short, accurate demo of its actual capabilities.
+
+- [Meta Global AI Developer Hackathon](https://cerebralvalley.ai/e/meta-ai-developer-hackathon)
+- [Meta SAM API basics](https://dev.meta.ai/docs/cookbook/sam-api-basics)
+- [Meta Muse Spark quickstart](https://dev.meta.ai/docs/cookbook/quickstart-chat-completions)
 
 ## License
 
-MIT for *this project's original source* only. Third-party dependencies, Meta models, video footage and external examples retain their own separate licenses/terms. See official documentation before incorporating any example assets.
-
-
-## Milestone 3 - SAM object tracking (new)
-
-After uploading an authorized **MP4/MOV** clip (H.264 preferred, <=30 seconds for this demo), select it in the player and click **Analyze with SAM (billable)**. The backend uses your local `MODEL_API_KEY` and makes two SAM 3.1 requests (`person` and `forklift`). The UI polls for results and shows box overlays and observed track fragments.
-
-New tracking endpoints:
-
-- `POST /api/v1/videos/{video_id}/tracking-jobs` - explicitly start billable local job (202).
-- `GET /api/v1/videos/{video_id}/tracking-jobs` - recent job statuses.
-- `GET /api/v1/tracking-jobs/{job_id}` - status and error-safe message.
-- `GET /api/v1/tracking-jobs/{job_id}/result` - normalized boxes, track fragments and gaps.
-
-The jobs run in a **single FastAPI process only** and are not durable across restarts. Both videos and results are stored privately under ignored `var/`. Output from Meta can be empty; that is a valid case. A missing observation breaks verified track continuity; we do not reidentify people from guesswork. Browser overlay timing is an **approximation**, not frame-accurate evidence or live monitoring.
-
-Read [object-tracking architecture](docs/architecture/object-tracking-pipeline.md), [milestone 3](docs/milestones/03-object-tracking.md), [occlusion policy](docs/features/tracking-identity-uncertainty.md), and [player caveats](docs/features/video-overlay.md).
-
-**Run locally:**
-
-```bash
-# Terminal 1 (repository root)
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp -n .env.example .env  # Set MODEL_API_KEY locally for paid inference
-python -m pytest backend/tests -q
-uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
-
-# Terminal 2
-cd frontend
-npm install
-npm run typecheck
-npm run build
-npm run dev
-```
-
-Open `http://localhost:3000`, upload a video, select it, and click Analyze. **Do not deploy these unauthenticated endpoints on a public host.** Automated tests are offline; real Meta SAM inference, playback alignment, privacy/retention and safety accuracy must be validated separately.
-
-
-## Milestone 4 — Reviewer-configured safety rules
-
-After a SAM tracking job completes, the viewer exposes a **Safety Intelligence** panel. Choose a rectangle (normalized coordinates), one of two supported rule types, and a required number of consecutive observed frames. **Evaluate tracked frames** makes a local deterministic API call with no model charges. The result returns potential rule matches, frame indices, approximate seek times, and tracking-gap uncertainty; it does **not** certify danger.
-
-Optionally describe your rule and click **Interpret with Muse (billable)**. Muse Spark 1.3 proposes a constrained JSON rule draft. Inspect it and click **Approve and apply draft**; you must still set the zone. Only explicit Muse and SAM calls use Meta credits.
-
-```bash
-python -m pytest backend/tests -q
-python -m backend.scripts.evaluate_fixture
-```
-
-API endpoints:
-- `POST /api/v1/rules/interpret` — optional billable Muse draft (manual approval required).
-- `POST /api/v1/tracking-jobs/{job_id}/evaluate` — offline deterministic rule evaluation against completed SAM report.
-
-Documentation: [architecture](docs/architecture/safety-rule-engine.md), [Muse drafting](docs/features/muse-safety-rule-drafting.md), [event semantics](docs/features/deterministic-hazard-events.md), [milestone](docs/milestones/04-safety-rule-engine.md).
-
-**Not yet validated:** live Muse/SAM compatibility, actual danger detection performance, frame-accurate timing, public deployment safety. The local API is not authenticated and must not be deployed publicly as-is.
-
-
-## Temporal evaluation reliability patch (`fix/temporal-evaluation`)
-
-Safety policies now use `min_duration_seconds` (default 0.5) and `max_observation_gap_frames` (default 2).
-`events` contain directly observed, contiguous rule matches, while `review_items` contain bounded-gap candidates and relevant near-zone gaps; **no missing frames are treated as observed**.
-The player supports drawing an operating zone directly over the video. Muse rule drafts can explicitly respond `unsupported` for speed, distance, PPE and other unimplemented capabilities.
-Tracking reports may use SAM media dimensions/FPS when those values are genuinely present and `ffprobe` is unavailable. Duration evaluation fails closed without FPS.
-
-Run `python -m pytest backend/tests -q` and `python -m backend.scripts.evaluate_fixture` for offline checks.
-After obtaining real, licensed SAM output, inspect its frame stride with `python -m backend.scripts.inspect_sam_frames outputs/day1/person/summary.json`.
-See [`docs/features/temporal-evaluation.md`](docs/features/temporal-evaluation.md) and [`docs/architecture/temporal-evaluation-v2.md`](docs/architecture/temporal-evaluation-v2.md).
-
-**Compatibility:** `min_consecutive_frames` has been replaced in requests and Muse draft output by `min_duration_seconds`, and results now have separate `review_items`. This is not yet a deployed, calibrated, or validated safety monitor.
-
-
-## Milestone 5 — Evidence and human review (packaged)
-
-Keep **VisionGuard AI** as the hackathon product. Its generalizable compiler idea is future direction;
-the current implementation supports `person_in_zone` and `person_and_forklift_in_zone` only.
-
-After a successful local SAM job and safety-rule evaluation, use **Save evidence snapshot** in the
-tracking workspace. The evidence view preserves the approved rule, source video SHA256, observed
-intervals, localized uncertainty, and selected source bounding-box samples. Each report supports
-**confirmed / rejected / unresolved** reviewer decisions, event seek, JSON export, and printable HTML.
-These decisions append to a local audit history; they are not certified evidence or tamper-proof records.
-The normal app is local-only and has **no authentication**. Never deploy those endpoints publicly.
-
-### Explore deterministic replay without Meta credits
-
-Open [the synthetic replay page](http://localhost:3000/replay) after starting both servers. The three
-fixtures demonstrate co-presence, an occluded track and a negative control. They contain **synthetic
-hand-authored coordinates, not real footage or actual SAM outputs**. The browser animates simple
-rectangles, accepts rule changes, seeks to observed intervals, and allows ephemeral reviewer decisions.
-Offline replay proves the rule engine works on fixtures only, **not** that SAM performs correctly.
-
-### Public read-only replay mode (optional)
-
-Start FastAPI with `VISIONGUARD_REPLAY_ONLY=1` and build the Next.js frontend with
-`NEXT_PUBLIC_REPLAY_ONLY=1`; keep `BACKEND_URL` pointed at the replay-only backend. In this configuration,
-uploads, tracking, billable Muse calls and local evidence-write endpoints are **not registered**.
-Verify the public deployment uses those flags and no credentials are exposed before linking judges.
-
-### Check actual SAM frame sampling before reporting accuracy
-
-```bash
-python -m backend.scripts.meta_smoke sam \
-  --video samples/warehouse.mp4 --concept person --concept forklift \
-  --output outputs/live-sam
-python -m backend.scripts.inspect_sam_frames outputs/live-sam/person/summary.json
-python -m backend.scripts.inspect_sam_frames outputs/live-sam/forklift/summary.json
-```
-
-Use only authorized footage; these are **live, billable requests** and have not been run by the
-package author. Do not infer verified occupancy across unobserved frames. Check the official SAM
-response shape and sampling cadence before adapting to strided results. Frame-to-time alignment in
-the current player remains approximate.
-
-### Feature 5 documentation
-
-- [Architecture: evidence and replay](docs/architecture/evidence-review-and-replay.md)
-- [Human review and exports](docs/features/evidence-snapshots-human-review.md)
-- [Synthetic replay limitations](docs/features/synthetic-replay.md)
-- [Milestone and acceptance checklist](docs/milestones/05-evidence-dashboard.md)
-- [Synthetic fixture provenance](benchmarks/replay/README.md)
-
-**Not implemented:** generic SceneOps object categories, emergency-exit blockage or pallet detection,
-continuous real-time camera inference, calibrated speed/distance, or production-safe authentication.
-Potential future extension: reuse the rule-to-evidence architecture for other industries once each
-new object concept and rule operator is implemented and validated.
+MIT applies to original repository code only. Meta models, third-party dependencies, video footage, and external media are governed by their respective terms. See [LICENSE](LICENSE).
