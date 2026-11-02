@@ -27,7 +27,10 @@ export default function ReplayPage() {
     finally {setBusy(false);}
   }, []);
   useEffect(() => {void fetchReplayScenarios().then(items=>{
-    setOptions(items);if(items.length) void load(items[0].id);
+    setOptions(items);
+    const requested = new URLSearchParams(window.location.search).get("scenario");
+    const matching = items.find(item => item.id === requested);
+    if (items.length) void load(matching?.id ?? items[0].id);
   }).catch(e=>setError(e instanceof Error ? e.message : "Replay API unavailable"));},[load]);
   useEffect(() => {
     if (!scenario || !playing) return;

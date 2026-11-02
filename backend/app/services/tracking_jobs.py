@@ -108,13 +108,35 @@ def list_jobs(video_id: str) -> list[dict[str, Any]]:
     return sorted(jobs, key=lambda j: j["created_at"], reverse=True)[:10]
 
 
+def _ffprobe_executable() -> str | None:
+    """Locate ffprobe even if FastAPI starts without a macOS package-manager PATH.
+
+    FFPROBE_BIN is an optional explicit override. A resolved program is still
+    required; missing or unreadable media must never bypass paid-job preflight.
+    """
+    explicit = os.getenv("FFPROBE_BIN", "").strip()
+    candidates = ([explicit] if explicit else []) + [
+        "/opt/local/bin/ffprobe",       # MacPorts
+        "/opt/homebrew/bin/ffprobe",    # Homebrew on Apple Silicon
+        "/usr/local/bin/ffprobe",      # Homebrew on Intel
+    ]
+    discovered = shutil.which("ffprobe")
+    if discovered:
+        candidates.append(discovered)
+    for candidate in candidates:
+        if candidate and Path(candidate).is_file() and os.access(candidate, os.X_OK):
+            return candidate
+    return None
+
+
 def probe_video(path: Path) -> dict[str, Any]:
     """Optional ffprobe. Times are approximate; never a frame-perfect guarantee."""
-    if not shutil.which("ffprobe"):
+    executable = _ffprobe_executable()
+    if executable is None:
         return {"available": False, "warning": "ffprobe is not installed; video duration and FPS unavailable"}
     try:
         proc = subprocess.run(
-            ["ffprobe", "-v", "error", "-select_streams", "v:0",
+            [executable, "-v", "error", "-select_streams", "v:0",
              "-show_entries", "stream=width,height,avg_frame_rate,r_frame_rate,codec_name,duration:format=duration",
              "-of", "json", str(path)],
             capture_output=True, text=True, timeout=15, check=True,
@@ -161,9 +183,10 @@ def create_job(video_id: str, requested_concepts: list[str] | None = None) -> di
         for key in ("width", "height", "fps")
     ):
         raise TrackingError(
-            "FFprobe is required to determine video FPS and dimensions before "
-            "billable SAM analysis. Install FFmpeg (which includes ffprobe), "
-            "restart FastAPI, and retry.", 503)
+            "Video preflight could not read positive FPS and dimensions. "
+            f"FFprobe diagnostic: {probe.get('warning', 'missing required metadata')}. "
+            "Set FFPROBE_BIN to an installed ffprobe executable, restart FastAPI, "
+            "and verify that the video has a readable frame rate and dimensions.", 503)
     short_side, long_side = sorted((probe["width"], probe["height"]))
     if long_side > 1920 or short_side > 1080 or probe["fps"] > 30:
         raise TrackingError("Use a clip at or below 1080p/30fps for this demo. "

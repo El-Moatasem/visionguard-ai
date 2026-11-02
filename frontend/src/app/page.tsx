@@ -1,162 +1,213 @@
 "use client";
 
 import Link from "next/link";
-import { ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
-import CameraCapture from "@/components/CameraCapture";
-import TrackingViewer from "@/components/TrackingViewer";
-import DemoLibrary from "@/components/DemoLibrary";
-import { fetchVideos, fetchDemoScenarios, uploadVideo, type VideoItem, type DemoScenario, type RuleSpec } from "@/lib/api";
+import { useRouter } from "next/navigation";
+import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  fetchReplayScenarios,
+  fetchVideos,
+  playbackUrl,
+  uploadVideo,
+  type ReplaySummary,
+  type VideoItem,
+} from "@/lib/api";
+import "./visionguard-gallery.css";
 
-const MAX_BYTES = 100 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
+const REPLAY_ONLY = process.env.NEXT_PUBLIC_REPLAY_ONLY === "1";
 
-export default function Home() {
+type Filter = "all" | "uploaded" | "replay" | "planned";
+type PreviewTheme = "warehouse" | "occlusion" | "clear" | "parking" | "retail" | "operator";
+const fixtureThemes: Record<string, PreviewTheme> = {
+  "warehouse-copresence": "warehouse",
+  "occlusion-review": "occlusion",
+  "clear-aisle": "clear",
+};
+const planned = [
+  { id: "parking-lot", title: "Parking lot", description: "Vehicle classification and parking-rule extensions are planned.", theme: "parking" as PreviewTheme },
+  { id: "shopping-cart", title: "Shopping cart", description: "Cart detection and retail rule types are not implemented yet.", theme: "retail" as PreviewTheme },
+  { id: "operator-protocol", title: "Operator exclusion", description: "Real driver/pedestrian validation requires explicit operator identification and a tested clip.", theme: "operator" as PreviewTheme },
+];
+
+function Brand() {
+  return <Link href="/" className="vg-brand" aria-label="VisionGuard AI home">
+    <span className="vg-brand-symbol" aria-hidden="true">◈</span>
+    <span>VISIONGUARD <b>AI</b><small>SCENE INTELLIGENCE</small></span>
+  </Link>;
+}
+
+function SceneVisual({ theme }: { theme: PreviewTheme }) {
+  // Original stylized illustration. Not a video thumbnail or SAM model output.
+  return <div className={`vg-scene vg-scene-${theme}`} aria-hidden="true">
+    <div className="vg-scene-horizon" />
+    <div className="vg-scene-rack vg-rack-left" />
+    <div className="vg-scene-rack vg-rack-right" />
+    {(theme === "warehouse" || theme === "operator" || theme === "occlusion") && <div className="vg-scene-forklift"><i /><i /></div>}
+    {(theme === "warehouse" || theme === "retail" || theme === "operator") && <div className="vg-scene-person" />}
+    {theme === "retail" && <div className="vg-scene-cart" />}
+    {theme === "parking" && <><div className="vg-scene-car vg-car-one" /><div className="vg-scene-car vg-car-two" /></>}
+    <span className="vg-preview-notice">ILLUSTRATION</span>
+  </div>;
+}
+
+function UploadVisual({ item }: { item: VideoItem }) {
+  return <div className="vg-upload-visual">
+    <video
+      src={`${playbackUrl(item)}#t=0.1`}
+      preload="metadata"
+      muted
+      playsInline
+      aria-hidden="true"
+      tabIndex={-1}
+    />
+    <span className="vg-video-play" aria-hidden="true">▶</span>
+  </div>;
+}
+
+function VideoCard({ item }: { item: VideoItem }) {
+  return <Link className="vg-video-card" href={`/studio?video=${encodeURIComponent(item.id)}`}>
+    <div className="vg-video-card-art"><UploadVisual item={item}/><span className="vg-content-chip vg-chip-upload">YOUR UPLOAD</span></div>
+    <div className="vg-card-body">
+      <strong title={item.name}>{item.name}</strong>
+      <p>{(item.size_bytes / 1024 / 1024).toFixed(1)} MiB · {item.sam_compatible_container ? "MP4/MOV" : "Conversion needed for SAM"}</p>
+      <span className="vg-card-link">Open in Analysis Studio <span aria-hidden="true">↗</span></span>
+    </div>
+  </Link>;
+}
+
+function ReplayCard({ item }: { item: ReplaySummary }) {
+  const theme = fixtureThemes[item.id] || "warehouse";
+  return <Link className="vg-video-card" href={`/replay?scenario=${encodeURIComponent(item.id)}`}>
+    <div className="vg-video-card-art"><SceneVisual theme={theme}/><span className="vg-content-chip vg-chip-replay">SYNTHETIC REPLAY</span></div>
+    <div className="vg-card-body"><strong>{item.title}</strong><p>{item.description}</p>
+      <span className="vg-card-link">Run deterministic replay <span aria-hidden="true">↗</span></span></div>
+  </Link>;
+}
+
+export default function GalleryPage() {
+  const router = useRouter();
   const picker = useRef<HTMLInputElement>(null);
-  const phonePicker = useRef<HTMLInputElement>(null);
-  const [chosen, setChosen] = useState<File | null>(null);
   const [videos, setVideos] = useState<VideoItem[]>([]);
-  const [scenarios, setScenarios] = useState<DemoScenario[]>([]);
-  const [pendingScenario, setPendingScenario] = useState<string | null>(null);
-  const [selected, setSelected] = useState<VideoItem | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("");
+  const [scenarios, setScenarios] = useState<ReplaySummary[]>([]);
+  const [filter, setFilter] = useState<Filter>("all");
+  const [query, setQuery] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [libraryLoading, setLibraryLoading] = useState(true);
-  const [libraryError, setLibraryError] = useState("");
+  const [videoError, setVideoError] = useState("");
+  const [replayError, setReplayError] = useState("");
 
-  const reload = useCallback(async () => {
-    setLibraryLoading(true);
-    setLibraryError("");
-    try {
-      const [items, catalog] = await Promise.all([fetchVideos(), fetchDemoScenarios()]);
-      setVideos(items);
-      setScenarios(catalog);
-      setSelected((current) => items.find((v) => v.id === current?.id) ?? items[0] ?? null);
-    } catch (err) {
-      setLibraryError(err instanceof Error ? err.message : "Video list unavailable");
-    } finally {
-      setLibraryLoading(false);
+  useEffect(() => {
+    let active = true;
+    async function initialize() {
+      const [videoResult, replayResult] = await Promise.allSettled([
+        REPLAY_ONLY ? Promise.resolve([] as VideoItem[]) : fetchVideos(),
+        fetchReplayScenarios(),
+      ]);
+      if (!active) return;
+      if (videoResult.status === "fulfilled") setVideos(videoResult.value);
+      else setVideoError(videoResult.reason instanceof Error ? videoResult.reason.message : "Video library unavailable");
+      if (replayResult.status === "fulfilled") setScenarios(replayResult.value);
+      else setReplayError(replayResult.reason instanceof Error ? replayResult.reason.message : "Replay demos unavailable");
+      setLoading(false);
     }
+    void initialize();
+    return () => { active = false; };
   }, []);
 
-  useEffect(() => { void reload(); }, [reload]);
-
-  function chooseFile(file: File | undefined) {
-    if (!file) return;
-    setError("");setMessage("");
-    if (file.size > MAX_BYTES) {
-      setError("Choose a video under 100 MiB. Trim or compress it first.");
-      setChosen(null);return;
-    }
-    setChosen(file);
-  }
-
-  function chooseDemoUpload(scenarioId: string) {
-    setPendingScenario(scenarioId);
-    picker.current?.click();
-  }
-
-  function onFileChange(event: ChangeEvent<HTMLInputElement>) {
-    chooseFile(event.target.files?.[0]);
+  function chooseFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
     event.target.value = "";
+    setError("");
+    if (!file) return;
+    if (file.size === 0 || file.size > MAX_UPLOAD_BYTES) {
+      setError("Select a nonempty video smaller than 100 MiB. SAM analysis has a separate 25 MiB limit.");
+      setSelectedFile(null);
+      return;
+    }
+    setSelectedFile(file);
   }
 
-  async function submit() {
-    if (!chosen || busy) return;
-    setBusy(true);setError("");setMessage("");
+  async function handleUpload() {
+    if (!selectedFile || uploading || REPLAY_ONLY) return;
+    setUploading(true);
+    setError("");
     try {
-      const created = await uploadVideo(chosen, pendingScenario);
-      setChosen(null);
-      setPendingScenario(null);
-      await reload();
-      setSelected(created);
-      setMessage(`Uploaded ${created.name}. Select it for optional SAM tracking. Use tracking and reviewer-configured rules to inspect potential hazards.`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
-    } finally { setBusy(false); }
+      const created = await uploadVideo(selectedFile);
+      router.push(`/studio?video=${encodeURIComponent(created.id)}`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Video upload failed");
+    } finally {
+      setUploading(false);
+    }
   }
 
-  if (process.env.NEXT_PUBLIC_REPLAY_ONLY === "1") {
-    return <main className="app-shell"><div className="container"><section className="hero"><span className="eyebrow">VISIONGUARD AI · PUBLIC SYNTHETIC REPLAY</span>
-      <h1>Inspect the evidence.<br/><span>Don't invent what isn't observed.</span></h1>
-      <p>This public deployment contains only synthetic hand-authored tracking fixtures. Upload, paid inference, and local review persistence are disabled.</p>
-      <Link href="/replay" className="button button-primary evidence-link">Open read-only replay</Link></section></div></main>;
-  }
-  return <main className="app-shell">
-    <header className="topbar"><div className="brand"><span className="brand-mark">◉</span><strong>VISIONGUARD <span>AI</span></strong></div><span className="top-status"><span className="status-dot" /> Hackathon MVP · Evidence and review</span></header>
-    <div className="container">
-      <div className="replay-navigation"><Link href="/replay" className="button button-secondary evidence-link">Explore synthetic replay →</Link><span>Offline rule evaluation, no model credits</span></div>
-      <section className="hero"><div className="eyebrow">VISUAL SAFETY INTELLIGENCE • RULE ENGINE</div><h1>Capture the scene.<br /><span>Understand what happened.</span></h1><p>Upload or record authorized workplace footage. Capture and upload short authorized clips, then optionally analyze people and forklifts with hosted SAM 3.1. Then configure a review zone and evaluate potential hazard conditions without relying on generated claims.</p></section>
-      <div className="sceneops-gallery-panel panel">
-        <DemoLibrary scenarios={scenarios} videos={videos} selectedId={selected?.id ?? null} onSelectVideo={setSelected} onImport={chooseDemoUpload}/>
-      </div>
-      <div className="workspace">
-        <div className="column">
-          <section className="panel"><div className="section-heading"><div><span className="eyebrow">01 / INGEST</span><h2>{pendingScenario ? "Add a video to selected demo" : "Upload a video"}</h2></div><span className="pill">MP4 · MOV · WebM</span></div>
-            <div className="dropzone" onClick={() => picker.current?.click()} role="button" tabIndex={0} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); picker.current?.click(); } }}>
-              <div className="upload-icon">↑</div><strong>{chosen ? chosen.name : "Select a short video"}</strong><span>{chosen ? `${(chosen.size / 1024 / 1024).toFixed(1)} MiB ready` : "Max 100 MiB · MP4, MOV or WebM"}</span>
-            </div>
-            <input ref={picker} type="file" accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" hidden onChange={onFileChange} aria-label="Select a video" />
-            <input ref={phonePicker} type="file" accept="video/*" capture="environment" hidden onChange={onFileChange} aria-label="Record video with phone" />
-            <div className="button-row"><button className="button button-primary" type="button" disabled={!chosen || busy} onClick={submit}>{busy ? "Uploading…" : "Upload video"}</button>
-            <button className="button button-secondary" type="button" onClick={() => phonePicker.current?.click()}>Capture with phone</button></div>
-          </section>
-          <CameraCapture onCaptured={chooseFile} />
+  const search = query.trim().toLocaleLowerCase();
+  const shownVideos = useMemo(() => videos.filter(item => item.name.toLocaleLowerCase().includes(search)), [videos, search]);
+  const shownScenarios = useMemo(() => scenarios.filter(item => (item.title + " " + item.description).toLocaleLowerCase().includes(search)), [scenarios, search]);
+  const shownPlanned = planned.filter(item => (item.title + " " + item.description).toLocaleLowerCase().includes(search));
+  const hasContent =
+    ((filter === "all" || filter === "uploaded") && shownVideos.length > 0) ||
+    ((filter === "all" || filter === "replay") && shownScenarios.length > 0) ||
+    ((filter === "all" || filter === "planned") && shownPlanned.length > 0);
+
+  return <main className="vg-gallery-page">
+    <header className="vg-gallery-topbar">
+      <Brand />
+      <nav className="vg-top-links" aria-label="Main navigation">
+        <Link className="vg-top-link vg-top-link-active" href="/" aria-current="page">Gallery</Link>
+        {!REPLAY_ONLY && <Link className="vg-top-link" href="/studio">Analysis Studio</Link>}
+        <Link className="vg-top-link" href="/replay">Synthetic Replay</Link>
+      </nav>
+      <span className="vg-top-environment"><i /> {REPLAY_ONLY ? "REPLAY ONLY" : "LOCAL RESEARCH MVP"}</span>
+    </header>
+
+    <div className="vg-gallery-container">
+      <section className="vg-hero-grid" aria-labelledby="vg-main-title">
+        <div className="vg-hero-copy">
+          <div className="vg-eyebrow"><span className="vg-eyebrow-rule"/> VIDEO INTELLIGENCE, MADE EXPLAINABLE</div>
+          <h1 id="vg-main-title">Explore the scene.<br/><em>See the evidence.</em></h1>
+          <p>Choose a scenario, bring a new video, or capture a short clip. Turn real SAM observations into zone-based, human-reviewable evidence.</p>
+          {REPLAY_ONLY ? <div className="vg-hero-actions"><Link className="vg-cta-main" href="/replay">Explore synthetic replay <span aria-hidden="true">↗</span></Link></div> :
+            <div className="vg-hero-actions">
+              <button type="button" className="vg-cta-main" onClick={() => picker.current?.click()}><span aria-hidden="true">↑</span> Upload a video</button>
+              <Link className="vg-cta-outline" href="/studio?capture=1">◉ Record a clip</Link>
+            </div>}
+          <div className="vg-hero-foot"><span><i /> {REPLAY_ONLY ? "Synthetic test fixtures" : "Real clips + synthetic tests"}</span><span>•</span><span>Inspectable, not automatic safety certification</span></div>
         </div>
-        <section className="panel library-panel"><div className="section-heading"><div><span className="eyebrow">02 / REVIEW</span><h2>Video workspace</h2></div><button className="small-link" type="button" onClick={() => void reload()}>Refresh</button></div>
-          <div className="player-wrap">
-            {selected ? (
-              <TrackingViewer key={selected.id} video={selected} initialRule={((): RuleSpec | undefined => {
-                const scenario = scenarios.find(s => s.id === selected.scenario_id);
-                if (!scenario) return undefined;
-                return {name: scenario.title, rule_type: scenario.rule_type,
-                  concept: scenario.rule_concept, min_duration_seconds: scenario.duration,
-                  max_observation_gap_frames: 2,
-                  zone: {name: scenario.title, x_min: scenario.zone[0], y_min: scenario.zone[1],
-                    x_max: scenario.zone[2], y_max: scenario.zone[3]}};
-              })()}/>
-            ) : (
-              <div className="video-empty-state" aria-live="polite">
-                {libraryLoading ? (
-                  <>
-                    <span className="video-empty-icon" aria-hidden="true">◌</span>
-                    <h3>Loading video library…</h3>
-                  </>
-                ) : libraryError ? (
-                  <>
-                    <span className="video-empty-icon" aria-hidden="true">!</span>
-                    <h3>Could not load your videos</h3>
-                    <p>{libraryError}</p>
-                    <button className="button button-secondary" type="button" onClick={() => void reload()}>
-                      Retry loading
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <span className="video-empty-icon" aria-hidden="true">▶</span>
-                    <h3>No videos uploaded yet</h3>
-                    <p>Upload or record an authorized clip to track people and forklifts with Meta SAM 3.1.</p>
-                    <div className="video-empty-actions">
-                      <button className="button button-primary" type="button" onClick={() => picker.current?.click()}>
-                        Choose video
-                      </button>
-                      <Link className="button button-secondary evidence-link" href="/replay">
-                        Explore sample replay
-                      </Link>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-          {selected && <div className="video-detail"><strong>{selected.name}</strong><span>{(selected.size_bytes / 1024 / 1024).toFixed(1)} MiB · {selected.media_type}</span><span className={selected.sam_compatible_container ? "tag tag-green" : "tag tag-amber"}>{selected.sam_compatible_container ? "MP4/MOV container" : "WebM • convert before SAM"}</span></div>}
-          {videos.length > 0 && <>
-            <div className="library-heading"><span>RECENT UPLOADS</span><span>{videos.length} item(s)</span></div>
-            <div className="video-list">{videos.map(v => <button type="button" key={v.id} className={`video-row ${selected?.id === v.id ? "is-selected" : ""}`} onClick={() => setSelected(v)}><span className="video-thumb">▶</span><span className="video-info"><strong>{v.name}</strong><small>{new Date(v.created_at).toLocaleString()} · {(v.size_bytes / 1024 / 1024).toFixed(1)} MiB</small></span></button>)}</div>
-          </>}
-        </section>
-      </div>
-      {(message || error) && <div className={error ? "toast toast-error" : "toast"} role={error ? "alert" : "status"}>{error || message}</div>}
-      <footer><span>VISIONGUARD AI · Research prototype</span><span>Not a certified safety monitor · Never upload confidential or unconsented footage</span></footer>
+        <div className="vg-hero-art" role="img" aria-label="Stylized illustration of a monitored warehouse scene, not actual model inference">
+          <SceneVisual theme="warehouse" />
+          <div className="vg-hero-outline vg-hero-outline-person"><span>PERSON</span></div>
+          <div className="vg-hero-outline vg-hero-outline-forklift"><span>FORKLIFT</span></div>
+          <div className="vg-hero-art-top">SCENE 001 <span>ILLUSTRATION ONLY</span></div>
+          <div className="vg-hero-art-bottom"><span>VISIONGUARD · FRAME INSPECTION</span><span>◌ 00:08</span></div>
+        </div>
+      </section>
+
+      {!REPLAY_ONLY && <section className="vg-quick-upload" aria-label="Quick upload">
+        <input ref={picker} type="file" accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" onChange={chooseFile} hidden aria-label="Select a video"/>
+        <div className="vg-quick-upload-copy"><span className="vg-upload-glyph" aria-hidden="true">↥</span><div><strong>{selectedFile ? selectedFile.name : "Have your own footage?"}</strong><small>{selectedFile ? `${(selectedFile.size / 1024 / 1024).toFixed(1)} MiB selected · upload to open Studio` : "MP4 · MOV · WebM, up to 100 MiB for storage"}</small></div></div>
+        <div className="vg-quick-upload-buttons"><button type="button" className="vg-small-quiet" disabled={uploading} onClick={() => picker.current?.click()}>{selectedFile ? "Change file" : "Browse files"}</button>{selectedFile && <button type="button" className="vg-small-primary" disabled={uploading} onClick={() => void handleUpload()}>{uploading ? "Uploading…" : "Upload & open studio ↗"}</button>}</div>
+        {error && <div className="vg-inline-error" role="alert">{error}</div>}
+      </section>}
+
+      <section className="vg-library" aria-labelledby="vg-library-title">
+        <div className="vg-library-heading"><div><span className="vg-eyebrow">THE SCENE LIBRARY</span><h2 id="vg-library-title">Choose where to begin.</h2><p>Real uploads go to the Analysis Studio. Synthetic fixtures evaluate the existing rule engine offline.</p></div>
+        <div className="vg-library-search"><span aria-hidden="true">⌕</span><input value={query} onChange={event=>setQuery(event.target.value)} type="search" placeholder="Search scenarios or videos" aria-label="Search scenarios or videos" /></div></div>
+        <div className="vg-library-filters" role="group" aria-label="Filter scenes">
+          {([ ["all","All scenes"], ["uploaded","My uploads"], ["replay","Synthetic replay"], ["planned","Future concepts"] ] as const).map(([value,label])=><button key={value} className={filter===value ? "vg-filter vg-filter-on" : "vg-filter"} aria-pressed={filter===value} onClick={()=>setFilter(value)}>{label}</button>)}
+        </div>
+        {loading ? <div className="vg-empty-state" role="status">Loading scene library…</div> : <>
+          {videoError && <p className="vg-library-alert" role="alert">Upload library unavailable: {videoError}. Replay scenarios can still be opened.</p>}
+          {replayError && <p className="vg-library-alert" role="alert">Replay catalog unavailable: {replayError}. Check the backend connection.</p>}
+          {(filter === "all" || filter === "uploaded") && shownVideos.length > 0 && <div className="vg-library-section"><div className="vg-section-line"><h3>Your uploaded videos</h3><span>{shownVideos.length} {shownVideos.length===1?"clip":"clips"}</span></div><div className="vg-card-grid">{shownVideos.map(item=><VideoCard item={item} key={item.id}/>)}</div></div>}
+          {(filter === "all" || filter === "replay") && shownScenarios.length > 0 && <div className="vg-library-section"><div className="vg-section-line"><h3>Interactive synthetic demos</h3><span>No model credits · Not actual video</span></div><div className="vg-card-grid">{shownScenarios.map(item=><ReplayCard item={item} key={item.id}/>)}</div></div>}
+          {(filter === "all" || filter === "planned") && shownPlanned.length > 0 && <div className="vg-library-section"><div className="vg-section-line"><h3>Future SceneOps concepts</h3><span>Not available for analysis</span></div><div className="vg-card-grid">{shownPlanned.map(item=><article className="vg-video-card vg-video-card-planned" key={item.id}><div className="vg-video-card-art"><SceneVisual theme={item.theme}/><span className="vg-content-chip vg-chip-planned">PLANNED</span></div><div className="vg-card-body"><strong>{item.title}</strong><p>{item.description}</p><span className="vg-card-future">Additional model concepts and rules required</span></div></article>)}</div></div>}
+          {!hasContent && <div className="vg-empty-state"><strong>No matching scenes</strong><p>{filter === "uploaded" ? "Your uploaded videos appear here automatically after a successful upload." : "Try a different search or filter."}</p></div>}
+        </>}
+      </section>
+      <footer className="vg-gallery-footer"><span>VISIONGUARD AI · Meta Hackathon Research MVP</span><span>Only authorized footage · Analysis is not a certified safety verdict</span></footer>
     </div>
   </main>;
 }
