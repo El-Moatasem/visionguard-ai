@@ -28,6 +28,30 @@ from backend.app.services.sceneops_concepts import normalize_concept
 logger = logging.getLogger(__name__)
 _LOCK = threading.Lock()
 _ACTIVE: set[str] = set()
+# Job cancellation is explicitly process-local. Do not deploy without authentication.
+_CANCEL_REQUESTED: set[str] = set()
+_WORKERS: dict[str, tuple[asyncio.AbstractEventLoop, asyncio.Task[Any]]] = {}
+
+
+def _cancel_requested(job_id: str) -> bool:
+    with _LOCK:
+        return job_id in _CANCEL_REQUESTED
+
+
+def _ensure_not_cancelled(job_id: str) -> None:
+    if _cancel_requested(job_id):
+        raise asyncio.CancelledError()
+
+
+def _finalize_cancel(job_id: str) -> None:
+    record = _read_record(job_id)
+    # A cancellation never creates a completed evidence/tracking result.
+    _paths(job_id)[1].unlink(missing_ok=True)
+    record.update(status="cancelled", phase="cancelled", cancel_requested=True,
+                  message="Local tracking job cancelled. Remote requests already sent to Meta may still be billed.",
+                  cancelled_at=datetime.now(timezone.utc).isoformat())
+    _write(_paths(job_id)[0], record)
+
 
 
 class TrackingError(Exception):
@@ -79,11 +103,75 @@ def get_job(job_id: str) -> dict[str, Any]:
     with _LOCK:
         active = job_id in _ACTIVE
     # On process restart, old queued/running tasks cannot resume automatically.
-    if record["status"] in {"queued", "running"} and not active:
-        record["status"] = "interrupted"
-        record["message"] = "Local process was interrupted; start a new job."
+    if record["status"] in {"queued", "running", "cancelling"} and not active:
+        if record.get("cancel_requested"):
+            record["status"] = "cancelled"
+            record["phase"] = "cancelled"
+            record["message"] = "Cancellation requested; worker is no longer running."
+        else:
+            record["status"] = "interrupted"
+            record["message"] = "Local process was interrupted; start a new job."
         _write(_paths(job_id)[0], record)
     return record
+
+
+def active_jobs() -> list[dict[str, Any]]:
+    """Jobs active in this one FastAPI process, across ALL uploaded videos."""
+    with _LOCK:
+        ids = sorted(_ACTIVE)
+    jobs = []
+    for job_id in ids:
+        try:
+            jobs.append(_read_record(job_id))
+        except TrackingError:
+            continue
+    return sorted(jobs, key=lambda item: item.get("created_at", ""), reverse=True)
+
+
+def cancel_job(job_id: str) -> dict[str, Any]:
+    """Request cooperative cancellation; do not report success until worker exits.
+
+    Closing the local coroutine/stream doesn't guarantee Meta has stopped a
+    request or refunded it. The active slot remains occupied until cleanup.
+    """
+    record = get_job(job_id)
+    if record["status"] in {"completed", "failed", "cancelled", "interrupted"}:
+        return record
+    if record["status"] not in {"queued", "running", "cancelling"}:
+        raise TrackingError("Job is not cancellable", 409)
+    with _LOCK:
+        if job_id not in _ACTIVE:
+            raise TrackingError("Job is no longer active", 409)
+        _CANCEL_REQUESTED.add(job_id)
+        worker = _WORKERS.get(job_id)
+        # Save cancelling status while holding the lock so completion cannot
+        # win a race after cancellation has already been accepted.
+        record = _read_record(job_id)
+        if record["status"] not in {"completed", "failed", "cancelled"}:
+            record.update(status="cancelling", phase="cancelling", cancel_requested=True,
+                          message="Cancellation requested; stopping local work. Meta may still bill in-flight inference.")
+            _write(_paths(job_id)[0], record)
+    if worker is not None:
+        loop, task = worker
+        try:
+            loop.call_soon_threadsafe(task.cancel)
+        except RuntimeError:
+            pass  # Loop exited; get_job() will reconcile final status.
+    return record
+
+
+def cancel_all_jobs() -> list[dict[str, Any]]:
+    """Request cancellation for ALL active jobs in this backend process."""
+    with _LOCK:
+        ids = sorted(_ACTIVE)
+    results = []
+    for job_id in ids:
+        try:
+            results.append(cancel_job(job_id))
+        except TrackingError as exc:
+            if exc.status_code != 404:
+                raise
+    return results
 
 
 def list_jobs(video_id: str) -> list[dict[str, Any]]:
@@ -269,15 +357,23 @@ async def _process_job_async(job_id: str) -> None:
     """Run the billable request off the ASGI loop and publish partial observations."""
     completed: dict[str, dict[str, Any]] = {}
     streamed: dict[str, list[dict[str, Any]]] = {}
+    with _LOCK:
+        current = asyncio.current_task()
+        assert current is not None
+        _WORKERS[job_id] = (asyncio.get_running_loop(), current)
     try:
+        _ensure_not_cancelled(job_id)
         record = _read_record(job_id)
         video_path, _ = get_video_file(record["video_id"])
+        _ensure_not_cancelled(job_id)
         record["status"] = "running"
         record["phase"] = "uploading"
         record["message"] = "Sending authorized clip to Meta SAM 3.1."
         _write(_paths(job_id)[0], record)
+        _ensure_not_cancelled(job_id)
 
         def on_progress(event: dict[str, Any]) -> None:
+            _ensure_not_cancelled(job_id)
             phase = str(event["phase"])
             concept = event.get("concept")
             if phase == "streaming" and concept in record["concepts"]:
@@ -303,25 +399,37 @@ async def _process_job_async(job_id: str) -> None:
             if "revision" in event:
                 record["revision"] = event["revision"]
             _write(_paths(job_id)[0], record)
+            _ensure_not_cancelled(job_id)
 
         summaries = await run_video(video_path, record["concepts"],
                                     tracking_dir() / job_id / "raw",
                                     progress_callback=on_progress)
+        _ensure_not_cancelled(job_id)
         record["phase"] = "building_report"
         record["message"] = "Preparing final tracked observations and uncertainty gaps."
         _write(_paths(job_id)[0], record)
         report = await asyncio.to_thread(build_tracking_report, summaries, record["media_probe"])
         report["job_id"] = job_id
         report["video_id"] = record["video_id"]
-        _write(_paths(job_id)[1], report)
-        record["status"] = "completed"
-        record["phase"] = "completed"
-        record["message"] = "SAM analysis completed; review tracks and occlusion gaps. No danger classification yet."
-        record["completed_at"] = datetime.now(timezone.utc).isoformat()
-        record["track_count"] = report["track_count"]
-        record["gap_count"] = report["gap_count"]
-        _write(_paths(job_id)[0], record)
+        # Commit both result and completed status atomically relative to
+        # cancel requests. Once completed, a job cannot be cancelled.
+        with _LOCK:
+            if job_id in _CANCEL_REQUESTED:
+                raise asyncio.CancelledError()
+            _write(_paths(job_id)[1], report)
+            record["status"] = "completed"
+            record["phase"] = "completed"
+            record["message"] = "SAM analysis completed; review tracks and occlusion gaps. No danger classification yet."
+            record["completed_at"] = datetime.now(timezone.utc).isoformat()
+            record["track_count"] = report["track_count"]
+            record["gap_count"] = report["gap_count"]
+            _write(_paths(job_id)[0], record)
+    except asyncio.CancelledError:
+        _finalize_cancel(job_id)
     except Exception as exc:
+        if _cancel_requested(job_id):
+            _finalize_cancel(job_id)
+            return
         logger.exception("SAM job %s failed", job_id)
         try:
             record = _read_record(job_id)
@@ -335,6 +443,8 @@ async def _process_job_async(job_id: str) -> None:
             logger.exception("Could not persist failed job state")
     finally:
         with _LOCK:
+            _WORKERS.pop(job_id, None)
+            _CANCEL_REQUESTED.discard(job_id)
             _ACTIVE.discard(job_id)
 
 
