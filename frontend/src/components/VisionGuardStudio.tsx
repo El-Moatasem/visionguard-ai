@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { type ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
 import CameraCapture from "@/components/CameraCapture";
 import TrackingViewer from "@/components/TrackingViewer";
+import ActiveTrackingJobs from "@/components/ActiveTrackingJobs";
 import { fetchVideos, uploadVideo, type VideoItem } from "@/lib/api";
 
 const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
@@ -101,7 +102,8 @@ export default function VisionGuardStudio({ requestedVideoId, openCamera = false
             {uploadError && <p role="alert" className="error">{uploadError}</p>}
             <details open={openCamera}><summary>Camera recording (15-second clips)</summary><CameraCapture onCaptured={chooseFile} /><p>After recording, select Upload & select. Browser WebM recordings need conversion before SAM inference.</p></details>
           </section>
-          <section className="vg-side-panel"><span className="vg-side-title">02 / YOUR VIDEO LIBRARY</span><h2>Recent uploads ({videos.length})</h2>
+          <ActiveTrackingJobs videoNames={Object.fromEntries(videos.map(item => [item.id, item.name]))} />
+          <section className="vg-side-panel"><span className="vg-side-title">03 / YOUR VIDEO LIBRARY</span><h2>Recent uploads ({videos.length})</h2>
             {error && <p role="alert" className="error">{error} <button type="button" className="vg-small-quiet" onClick={()=>void reload(requestedVideoId)}>Retry</button></p>}
             <div className="vg-side-list">
               {videos.map(video=><button type="button" key={video.id} aria-current={selected?.id === video.id} title={video.name} onClick={()=>{setSelected(video);router.replace(`/studio?video=${encodeURIComponent(video.id)}`, {scroll:false});}}>{selected?.id === video.id ? "● " : "▷ "}{video.name}</button>)}
@@ -109,7 +111,7 @@ export default function VisionGuardStudio({ requestedVideoId, openCamera = false
             </div>
             <div className="vg-quick-upload-buttons"><button type="button" className="vg-small-quiet" disabled={loading} onClick={()=>void reload(requestedVideoId)}>Refresh library</button><Link className="vg-small-quiet" href="/replay">Synthetic demos ↗</Link></div>
           </section>
-          <section className="vg-side-panel"><span className="vg-side-title">03 / ANALYSIS NOTES</span><h2>How the studio works</h2>
+          <section className="vg-side-panel"><span className="vg-side-title">04 / ANALYSIS NOTES</span><h2>How the studio works</h2>
             <p>Use the SAM tracking section below your video to start billable inference. Supported concepts are <strong>person</strong> and <strong>forklift</strong>. Then draw a zone, run a supported rule, and inspect evidence.</p>
             <p>Stored uploads can be up to 100 MiB. SAM preflight currently requires an MP4/MOV of at most 25 MiB, 30 seconds, and 1080p/30 FPS, with FFprobe available on the backend.</p>
             <p>Tracking runs after a clip is captured or uploaded. It is not continuous live-camera analysis or safety certification.</p>

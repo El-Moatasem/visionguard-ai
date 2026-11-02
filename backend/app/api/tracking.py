@@ -5,6 +5,9 @@ from pydantic import BaseModel, ConfigDict, Field
 from backend.app.services.tracking_jobs import (
     TrackingError,
     create_job,
+    cancel_job,
+    cancel_all_jobs,
+    active_jobs,
     get_job,
     get_preview,
     get_result,
@@ -32,6 +35,29 @@ async def start_tracking(video_id: str, background_tasks: BackgroundTasks, reque
         raise _bad(exc) from exc
     background_tasks.add_task(process_job, job["id"])
     return job
+
+
+@router.get("/tracking-jobs/active")
+def tracking_active():
+    return {"items": active_jobs(), "scope": "current_backend_process"}
+
+
+@router.post("/tracking-jobs/cancel-all", status_code=202)
+def tracking_cancel_all():
+    try:
+        jobs = cancel_all_jobs()
+        return {"items": jobs, "count": len(jobs),
+                "note": "Cancellation requested for jobs in this backend process; remote billing may continue."}
+    except TrackingError as exc:
+        raise _bad(exc) from exc
+
+
+@router.post("/tracking-jobs/{job_id}/cancel", status_code=202)
+def tracking_cancel(job_id: str):
+    try:
+        return cancel_job(job_id)
+    except TrackingError as exc:
+        raise _bad(exc) from exc
 
 
 @router.get("/videos/{video_id}/tracking-jobs")

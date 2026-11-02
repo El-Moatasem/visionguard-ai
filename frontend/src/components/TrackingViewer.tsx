@@ -5,7 +5,7 @@ import SafetyRulePanel from "@/components/SafetyRulePanel";
 import EvidenceDashboard from "@/components/EvidenceDashboard";
 import {
   fetchTrackingJob, fetchTrackingJobs, fetchTrackingResult, fetchTrackingPreview, playbackUrl,
-  startTracking, type TrackingJob, type TrackingReport, type TrackingBox, type VideoItem, type SafetyZone, type RuleSpec, type SafetyEvaluation,
+  startTracking, cancelTrackingJob, type TrackingJob, type TrackingReport, type TrackingBox, type VideoItem, type SafetyZone, type RuleSpec, type SafetyEvaluation,
 } from "@/lib/api";
 
 const PALETTE: Record<string, string> = {
@@ -32,6 +32,7 @@ export default function TrackingViewer({ video, initialRule }: { video: VideoIte
   const [preview, setPreview] = useState<TrackingReport | null>(null);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [approvedRule, setApprovedRule] = useState<RuleSpec | null>(null);
   const [evaluation, setEvaluation] = useState<SafetyEvaluation | null>(null);
   const [conceptSelection, setConceptSelection] = useState<string[]>(video.suggested_concepts?.length ? video.suggested_concepts : ["person", "forklift"]);
@@ -54,7 +55,7 @@ export default function TrackingViewer({ video, initialRule }: { video: VideoIte
   }, [video.id]);
 
   useEffect(() => {
-    if (!job || !["queued", "running"].includes(job.status)) return;
+    if (!job || !["queued", "running", "cancelling"].includes(job.status)) return;
     let current = true;
     const tick = () => { void fetchTrackingJob(job.id).then((fresh) => {
       if (current) { setJob(fresh); setError(""); }
@@ -69,7 +70,7 @@ export default function TrackingViewer({ video, initialRule }: { video: VideoIte
   // Poll a separate lightweight, read-only snapshot for progressive overlays.
   // A preview is never treated as a complete safety/evidence report.
   useEffect(() => {
-    if (!job || !["queued", "running"].includes(job.status)) return;
+    if (!job || !["queued", "running", "cancelling"].includes(job.status)) return;
     let current = true;
     const tick = () => {
       void fetchTrackingPreview(job.id).then(data => {
@@ -83,7 +84,7 @@ export default function TrackingViewer({ video, initialRule }: { video: VideoIte
 
   // Keep partial observations from a terminal job, but never poll it repeatedly.
   useEffect(() => {
-    if (!job || !["failed", "interrupted"].includes(job.status)) return;
+    if (!job || !["failed", "interrupted", "cancelled"].includes(job.status)) return;
     let current = true;
     void fetchTrackingPreview(job.id).then(data => { if(current && data) setPreview(data); })
       .catch(() => {/* no partial observations is expected */});
@@ -127,6 +128,14 @@ export default function TrackingViewer({ video, initialRule }: { video: VideoIte
     try { setJob(await startTracking(video.id, conceptSelection)); }
     catch (err) { setError(err instanceof Error ? err.message : "Tracking request failed"); }
     finally { setSubmitting(false); }
+  }
+
+  async function cancelCurrent() {
+    if (!job || !["queued", "running"].includes(job.status)) return;
+    setCancelling(true); setError("");
+    try { setJob(await cancelTrackingJob(job.id)); }
+    catch (err) { setError(err instanceof Error ? err.message : "Could not cancel analysis"); }
+    finally { setCancelling(false); }
   }
 
   function svgPoint(event: ReactPointerEvent<SVGSVGElement>) {
@@ -185,7 +194,7 @@ export default function TrackingViewer({ video, initialRule }: { video: VideoIte
     ...(evaluation?.review_items ?? []).map((x, i) => ({type: "review" as const, start: x.start_seconds_approx, end: x.end_seconds_approx, id: x.event_id ?? `review-${i}`}))];
   const samMaxBytes = 25 * 1024 * 1024;
   const tooLargeForSam = video.size_bytes > samMaxBytes;
-  const busy = submitting || job?.status === "running" || job?.status === "queued";
+  const busy = submitting || cancelling || ["queued", "running", "cancelling"].includes(job?.status ?? "");
 
   return <div className="tracking-viewer">
     <div className="tracking-player">
@@ -242,6 +251,12 @@ export default function TrackingViewer({ video, initialRule }: { video: VideoIte
       {job?.status === "completed" && job.concepts.join() !== conceptSelection.join() && <p className="helper">The saved tracking result uses {job.concepts.join(", ")}. Changing the concept selection requires a new billable analysis.</p>}
       <button type="button" className="button button-primary" disabled={busy || !video.sam_compatible_container || tooLargeForSam}
         onClick={() => void analyze()}>{busy ? "Analyzing…" : job?.status === "completed" ? "Run fresh analysis (billable)" : "Analyze with SAM (billable)"}</button>
+      {["queued", "running"].includes(job?.status ?? "") && <button type="button" className="button button-alert"
+        disabled={cancelling} onClick={() => void cancelCurrent()}>
+        {cancelling ? "Requesting cancellation…" : "Cancel this analysis"}
+      </button>}
+      {job?.status === "cancelling" && <p className="helper" role="status">Stopping this job locally. Charges may still apply to Meta requests already started.</p>}
+      {job?.status === "cancelled" && <p className="helper" role="status">Analysis cancelled; no final tracking result was published.</p>}
       {!video.sam_compatible_container && <p className="error">WebM is not supported by SAM. Convert to H.264 MP4 first.</p>}
       {tooLargeForSam && <p className="error">This video exceeds the 25 MiB SAM analysis limit. Uploads may be up to 100 MiB, but clips must be compressed before inference.</p>}
       {job && <p className="helper" role="status">{job.message}</p>}
