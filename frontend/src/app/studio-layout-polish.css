@@ -1,0 +1,183 @@
+/* VisionGuard Analysis Studio layout polish — Fixes_17.
+ * Scoped to the studio, without changing tracking, billing, or cancellation logic.
+ */
+
+/* Keep the player as the visual anchor; let everything else shrink correctly. */
+.vg-gallery-page .vg-studio-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(290px, 330px);
+  gap: clamp(16px, 2vw, 24px);
+  align-items: start;
+}
+.vg-gallery-page .vg-studio-grid > *,
+.vg-gallery-page .vg-studio-player,
+.vg-gallery-page .vg-studio-side,
+.vg-gallery-page .tracking-tools,
+.vg-gallery-page .tracking-viewer { min-width: 0; }
+.vg-gallery-page .vg-studio-player .tracking-tools { padding: 22px clamp(16px, 2.2vw, 26px); }
+.vg-gallery-page .tracking-tools-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.vg-gallery-page .tracking-tools-header h3 {
+  margin: 6px 0 2px;
+  font-size: clamp(16px, 1.5vw, 20px);
+  line-height: 1.25;
+}
+.vg-gallery-page .tracking-tools > .helper {
+  font-size: 12px;
+  line-height: 1.6;
+  max-width: 85ch;
+  overflow-wrap: anywhere;
+}
+.vg-gallery-page .sceneops-concepts { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0 12px; }
+.vg-gallery-page .sceneops-concepts label { flex: 0 0 auto; }
+.vg-gallery-page .sceneops-concepts select { min-width: min(100%, 210px); max-width: 100%; flex: 1 1 280px; }
+
+/* Analyze and Cancel are neighboring actions. Avoid huge inherited button fonts. */
+.vg-gallery-page .tracking-tools > button.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  min-height: 42px;
+  max-width: 100%;
+  padding: 10px 15px;
+  margin: 6px 9px 12px 0;
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 750;
+  letter-spacing: 0;
+  text-align: center;
+  white-space: normal;
+  border-radius: 9px;
+}
+.vg-gallery-page .tracking-tools > button.button-primary { background: #43d9b8; color: #082e26; }
+.vg-gallery-page .tracking-tools > button.button-alert { background: #e78577; color: #241614; }
+.vg-gallery-page .tracking-tools > button.button:disabled { opacity: .7; cursor: not-allowed; }
+
+/* Compact, readable, independent background-jobs panel. */
+.vg-gallery-page .vg-studio-side {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+.vg-gallery-page .vg-studio-side .vg-side-panel {
+  padding: 17px 18px;
+  min-width: 0;
+}
+.vg-gallery-page .vg-studio-side .vg-side-panel h2 {
+  margin: 6px 0 10px;
+  font-size: 15px;
+  line-height: 1.35;
+}
+.vg-gallery-page .vg-studio-side .vg-side-panel p {
+  margin: 8px 0;
+  font-size: 11px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.vg-gallery-page .vg-studio-side .vg-side-panel .vg-side-title {
+  font-size: 10px;
+  letter-spacing: 1.3px;
+}
+.vg-gallery-page .vg-studio-side [aria-label="Active tracking jobs"] .vg-side-list {
+  margin: 8px 0 0;
+  display: grid;
+  gap: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.vg-gallery-page .vg-studio-side [aria-label="Active tracking jobs"] .vg-side-list > div {
+  min-width: 0;
+  padding: 10px 0 !important;
+}
+.vg-gallery-page .vg-studio-side [aria-label="Active tracking jobs"] .vg-side-list > div > div {
+  align-items: center !important;
+  gap: 10px !important;
+}
+.vg-gallery-page .vg-studio-side [aria-label="Active tracking jobs"] .small-link {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+}
+.vg-gallery-page .vg-studio-side [aria-label="Active tracking jobs"] .vg-side-list .helper {
+  color: #9fb7c2;
+  font-size: 10px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.vg-gallery-page .vg-studio-side [aria-label="Active tracking jobs"] button.button {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  max-width: 100%;
+  min-height: 34px;
+  margin: 0;
+  padding: 8px 11px;
+  font-size: 11px !important;
+  line-height: 1.25;
+  font-weight: 750;
+  border-radius: 8px;
+  white-space: normal;
+}
+.vg-gallery-page .vg-studio-side [aria-label="Active tracking jobs"] > button.button-alert {
+  display: flex;
+  width: 100%;
+  min-height: 40px;
+  margin: 12px 0 8px;
+  padding: 10px 12px;
+  font-size: 12px !important;
+  text-align: center;
+  background: #e78577;
+  color: #241614;
+}
+.vg-gallery-page .vg-studio-side [aria-label="Active tracking jobs"] > .helper:last-child {
+  margin-top: 9px;
+  color: #91a9b4;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.vg-gallery-page .vg-studio-side .vg-quick-upload-buttons { gap: 8px; }
+.vg-gallery-page .vg-studio-side .vg-quick-upload-buttons > button,
+.vg-gallery-page .vg-studio-side .vg-quick-upload-buttons > a {
+  min-width: 0;
+  max-width: 100%;
+  font-size: 11px;
+  line-height: 1.35;
+  padding: 10px 12px;
+  text-align: center;
+}
+
+/* Keep video controls above metadata; prevent long filenames or diagnostics from spilling out. */
+.vg-gallery-page .vg-studio-player-header { min-width: 0; }
+.vg-gallery-page .vg-studio-player-header strong { min-width: 0; flex: 1 1 auto; }
+.vg-gallery-page .vg-studio-player-header span { flex: 0 1 auto; white-space: normal; text-align: right; }
+
+/* Move utility cards below the player on laptops and smaller viewports. */
+@media (max-width: 1180px) {
+  .vg-gallery-page .vg-studio-grid { grid-template-columns: minmax(0, 1fr); }
+  .vg-gallery-page .vg-studio-side { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .vg-gallery-page .vg-studio-side { grid-template-columns: minmax(0, 1fr); }
+  .vg-gallery-page .tracking-tools > button.button { width: 100%; margin: 5px 0; }
+  .vg-gallery-page .sceneops-concepts { align-items: stretch; }
+  .vg-gallery-page .sceneops-concepts label { width: 100%; }
+  .vg-gallery-page .sceneops-concepts select { flex-basis: 100%; }
+  .vg-gallery-page .vg-studio-side .vg-side-panel { padding: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vg-gallery-page .tracking-tools button,
+  .vg-gallery-page .vg-studio-side button { transition: none; }
+}
