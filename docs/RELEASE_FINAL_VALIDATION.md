@@ -88,16 +88,6 @@ No public unauthenticated paid SAM API, upload storage or review persistence. Pu
 - [ ] Hackathon disclosure reflects actual commits and the prebuild baseline.
 - [ ] Record 3-minute demo; submit before official deadline.
 
-## Generate a COMPLETE replacement ZIP after the patch
-
-The patch includes a builder that captures the real **full source code from your Mac's checkout** (including changed and new source files), without `.git`, `.env`, video uploads, local results, or secrets:
-
-```bash
-python3 scripts/build_complete_source.py --repo .
-```
-
-The resulting `../VisionGuard_AI_Final_Full_Source.zip` is a complete source ZIP from your local checkout. This is preferable to distributing a fabricated "full repo" that omits unmodified dependencies or demos.
-
 For one-command local validation:
 
 ```bash
