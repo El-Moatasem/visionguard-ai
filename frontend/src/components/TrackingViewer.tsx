@@ -16,7 +16,8 @@ const MODES = [
   {name: "Warehouse: people + forklifts", concepts: ["person","forklift"]},
   {name: "Parking: cars", concepts: ["car"]},
   {name: "Retail: carts + boxes", concepts: ["shopping_cart","cardboard_box"]},
-  {name: "Construction: people + excavators", concepts: ["person","excavator"]},
+  {name: "Construction: worker zone entry (person only)", concepts: ["person"]},
+  {name: "Construction: people + excavators (extended)", concepts: ["person","excavator"]},
 ];
 
 export default function TrackingViewer({ video, initialRule }: { video: VideoItem; initialRule?: RuleSpec }) {
