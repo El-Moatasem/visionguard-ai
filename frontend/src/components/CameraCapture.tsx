@@ -19,6 +19,7 @@ export default function CameraCapture({ onCaptured }: Props) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [active, setActive] = useState(false);
   const [recording, setRecording] = useState(false);
+  const [includeMicrophone, setIncludeMicrophone] = useState(false);
   const [error, setError] = useState("");
 
   const release = useCallback(() => {
@@ -44,7 +45,7 @@ export default function CameraCapture({ onCaptured }: Props) {
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" } }, audio: false,
+        video: { facingMode: { ideal: "environment" } }, audio: includeMicrophone,
       });
       streamRef.current = stream;
       if (previewRef.current) {
@@ -101,6 +102,11 @@ export default function CameraCapture({ onCaptured }: Props) {
 
   return <section className="panel camera-panel" aria-label="Phone camera">
     <div className="section-heading"><div><span className="eyebrow">CAMERA INPUT</span><h2>Record a short clip</h2></div><span className="pill">15s max</span></div>
+    <label className="helper" style={{display: "flex", alignItems: "center", gap: 8, marginBottom: 10}}>
+      <input type="checkbox" checked={includeMicrophone} disabled={active || recording}
+        onChange={event => setIncludeMicrophone(event.target.checked)} />
+      Record microphone audio (optional; requires permission)
+    </label>
     <video className="camera-preview" ref={previewRef} autoPlay playsInline muted aria-label="Camera preview" />
     <div className="button-row">
       {!active ? <button type="button" className="button button-secondary" onClick={openCamera}>Open camera preview</button> :
@@ -108,7 +114,7 @@ export default function CameraCapture({ onCaptured }: Props) {
         <button type="button" className="button button-alert" onClick={stopRecording}>Stop recording</button>}
       {active && !recording && <button type="button" className="button button-quiet" onClick={release}>Close camera</button>}
     </div>
-    <p className="helper">Camera preview requires HTTPS or localhost. Phone capture input below works on more browsers.</p>
+    <p className="helper">Camera preview stays muted to avoid feedback. To record sound, enable the microphone before opening the camera. HTTPS or localhost is required for preview.</p>
     {error && <p className="error" role="alert">{error}</p>}
   </section>;
 }

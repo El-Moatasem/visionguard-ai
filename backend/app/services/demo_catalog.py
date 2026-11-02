@@ -9,7 +9,7 @@ SCENARIOS: dict[str, dict[str, Any]] = {
         "description": "Workers and forklifts observed in the same reviewer-defined operating zone.",
         "concepts": ["person", "forklift"], "rule_type": "person_and_forklift_in_zone",
         "rule_concept": None, "duration": 0.5,
-        "zone": [0.2, 0.2, 0.8, 0.8], "provenance": "real_video_required",
+        "zone": [0.36, 0.46, 0.68, 0.92], "provenance": "real_video_required",
         "expected": "Review any qualifying observed co-presence; forklift operator may also be detected as person.",
     },
     "pedestrian-forklift": {
