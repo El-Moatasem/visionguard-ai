@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import VisionGuardStudio from "@/components/VisionGuardStudio";
 import "../visionguard-gallery.css";
+import "../studio-layout-polish.css";
 
 export const metadata = {
   title: "Analysis Studio | VisionGuard AI",
