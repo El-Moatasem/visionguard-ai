@@ -25,9 +25,11 @@ def prepare(src: Path, dst: Path, seconds: float = 5.0,
     dst.parent.mkdir(parents=True, exist_ok=True)
     command = ["ffmpeg", "-hide_banner", "-nostdin", "-y", "-v", "error",
                "-i", str(src), "-t", str(seconds),
+               "-map", "0:v:0", "-map", "0:a:0?",
                "-vf", f"scale=-2:{height},fps={fps}",
                "-c:v", "libx264", "-preset", "veryfast", "-crf", "26",
-               "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an", str(dst)]
+               "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "96k",
+               "-movflags", "+faststart", str(dst)]
     subprocess.run(command, capture_output=True, text=True, timeout=180, check=True)
     from backend.app.services.sam import MAX_BYTES, validate_video
     validate_video(dst)
