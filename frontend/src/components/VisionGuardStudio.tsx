@@ -6,7 +6,7 @@ import { type ChangeEvent, useCallback, useEffect, useRef, useState } from "reac
 import CameraCapture from "@/components/CameraCapture";
 import TrackingViewer from "@/components/TrackingViewer";
 import ActiveTrackingJobs from "@/components/ActiveTrackingJobs";
-import { fetchVideos, uploadVideo, prepareVideoForSam, type VideoItem } from "@/lib/api";
+import { fetchVideos, uploadVideo, prepareVideoForSam, deleteVideo, deleteAllVideos, type VideoItem } from "@/lib/api";
 
 const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 
@@ -25,6 +25,8 @@ export default function VisionGuardStudio({ requestedVideoId, openCamera = false
   const [prepareStart, setPrepareStart] = useState(0);
   const [prepareDuration, setPrepareDuration] = useState(20);
   const [preparing, setPreparing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const [prepareError, setPrepareError] = useState("");
 
   const reload = useCallback(async (videoId?: string) => {
@@ -92,6 +94,30 @@ export default function VisionGuardStudio({ requestedVideoId, openCamera = false
     }
   }
 
+  async function refreshAfterDeletion() {
+    const items = await fetchVideos();
+    setVideos(items);
+    const next = items.find(item => item.id === selected?.id) ?? items[0] ?? null;
+    setSelected(next);
+    router.replace(next ? `/studio?video=${encodeURIComponent(next.id)}` : "/studio", {scroll:false});
+  }
+  async function removeOne(item: VideoItem) {
+    if (deleting || !window.confirm(`Delete "${item.name}" and associated prepared clips, tracking jobs and evidence permanently?`)) return;
+    setDeleting(true); setDeleteError("");
+    try {await deleteVideo(item.id); await refreshAfterDeletion();}
+    catch (cause) {setDeleteError(cause instanceof Error ? cause.message : "Deletion failed");}
+    finally {setDeleting(false);}
+  }
+  async function removeEverything() {
+    if (deleting || !videos.length) return;
+    const typed = window.prompt(`Permanently delete ALL stored uploaded videos, including any not shown in the recent library, and their analyses?\nType DELETE ALL VIDEOS:`);
+    if (typed !== "DELETE ALL VIDEOS") return;
+    setDeleting(true); setDeleteError("");
+    try {await deleteAllVideos(); await refreshAfterDeletion();}
+    catch (cause) {setDeleteError(cause instanceof Error ? cause.message : "Clear library failed");}
+    finally {setDeleting(false);}
+  }
+
   return <main className="vg-gallery-page">
     <header className="vg-gallery-topbar">
       <Link href="/" className="vg-brand"><span className="vg-brand-symbol" aria-hidden="true">◈</span><span>VISIONGUARD <b>AI</b><small>SCENE INTELLIGENCE</small></span></Link>
@@ -148,10 +174,20 @@ export default function VisionGuardStudio({ requestedVideoId, openCamera = false
           <section className="vg-side-panel"><span className="vg-side-title">04 / YOUR VIDEO LIBRARY</span><h2>Recent uploads ({videos.length})</h2>
             {error && <p role="alert" className="error">{error} <button type="button" className="vg-small-quiet" onClick={()=>void reload(requestedVideoId)}>Retry</button></p>}
             <div className="vg-side-list">
-              {videos.map(video=><button type="button" key={video.id} aria-current={selected?.id === video.id} title={video.name} onClick={()=>{setSelected(video);router.replace(`/studio?video=${encodeURIComponent(video.id)}`, {scroll:false});}}>{selected?.id === video.id ? "● " : "▷ "}{video.name}</button>)}
+              {videos.map(video=><div className="vg-studio-video-row" key={video.id}>
+                <button type="button" className="vg-video-select" aria-current={selected?.id === video.id} title={video.name}
+                  onClick={()=>{setSelected(video);router.replace(`/studio?video=${encodeURIComponent(video.id)}`, {scroll:false});}}>
+                  {selected?.id === video.id ? "● " : "▷ "}{video.name}
+                </button>
+                <button type="button" className="vg-studio-delete" disabled={deleting} onClick={()=>void removeOne(video)}
+                  aria-label={`Delete ${video.name}`}>Delete</button>
+              </div>)}
               {!loading && !videos.length && !error && <p>No uploaded videos yet. Your first upload will appear here.</p>}
             </div>
-            <div className="vg-quick-upload-buttons"><button type="button" className="vg-small-quiet" disabled={loading} onClick={()=>void reload(requestedVideoId)}>Refresh library</button><Link className="vg-small-quiet" href="/replay">Synthetic demos ↗</Link></div>
+            <div className="vg-quick-upload-buttons"><button type="button" className="vg-small-quiet" disabled={loading || deleting} onClick={()=>void reload(requestedVideoId)}>Refresh library</button><Link className="vg-small-quiet" href="/replay">Synthetic demos ↗</Link></div>
+            {videos.length > 0 && <button type="button" className="vg-card-delete-all" disabled={deleting} onClick={()=>void removeEverything()}>
+              {deleting ? "Deleting…" : "Delete all uploaded videos"}</button>}
+            {deleteError && <p role="alert" className="error">{deleteError}</p>}
           </section>
           <section className="vg-side-panel"><span className="vg-side-title">05 / ANALYSIS NOTES</span><h2>How the studio works</h2>
             <p>Use the SAM tracking section below your video to start billable inference. Supported concepts are <strong>person</strong> and <strong>forklift</strong>. Then draw a zone, run a supported rule, and inspect evidence.</p>

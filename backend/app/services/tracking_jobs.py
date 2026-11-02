@@ -298,6 +298,11 @@ def create_job(video_id: str, requested_concepts: list[str] | None = None) -> di
     with _LOCK:
         if _ACTIVE:
             raise TrackingError("Another SAM job is active. Retry when it finishes.", 409)
+        # Revalidate under the same gate used by local video deletion.
+        try:
+            get_video_file(video_id)
+        except VideoUploadError as exc:
+            raise TrackingError(exc.message, exc.status_code) from exc
         _ACTIVE.add(job_id)
     record = {"id": job_id, "video_id": video_id, "status": "queued",
               "created_at": datetime.now(timezone.utc).isoformat(), "model": SAM_MODEL,

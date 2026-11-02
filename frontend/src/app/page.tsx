@@ -6,6 +6,7 @@ import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   fetchReplayScenarios,
   fetchVideos,
+  deleteVideo, deleteAllVideos,
   playbackUrl,
   uploadVideo,
   type ReplaySummary,
@@ -136,6 +137,8 @@ export default function GalleryPage() {
   const [query, setQuery] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [videoError, setVideoError] = useState("");
@@ -184,6 +187,23 @@ export default function GalleryPage() {
     } finally {
       setUploading(false);
     }
+  }
+
+  async function removeVideo(item: VideoItem) {
+    if (deleting || !window.confirm(`Permanently delete "${item.name}"? Any prepared clips, SAM jobs, and evidence derived from it will also be deleted.`)) return;
+    setDeleting(true); setDeleteError("");
+    try { await deleteVideo(item.id); setVideos(await fetchVideos()); }
+    catch (cause) {setDeleteError(cause instanceof Error ? cause.message : "Delete failed");}
+    finally {setDeleting(false);}
+  }
+  async function clearLibrary() {
+    if (deleting || !videos.length) return;
+    const typed = window.prompt(`Delete ALL stored uploaded videos (including older videos not shown here), prepared clips, tracking jobs and evidence permanently?\nType DELETE ALL VIDEOS to confirm:`);
+    if (typed !== "DELETE ALL VIDEOS") return;
+    setDeleting(true); setDeleteError("");
+    try { await deleteAllVideos(); setVideos(await fetchVideos()); }
+    catch (cause) {setDeleteError(cause instanceof Error ? cause.message : "Clear library failed");}
+    finally {setDeleting(false);}
   }
 
   const search = query.trim().toLocaleLowerCase();
@@ -244,7 +264,18 @@ export default function GalleryPage() {
         {loading ? <div className="vg-empty-state" role="status">Loading scene library…</div> : <>
           {videoError && <p className="vg-library-alert" role="alert">Upload library unavailable: {videoError}. Replay scenarios can still be opened.</p>}
           {replayError && <p className="vg-library-alert" role="alert">Replay catalog unavailable: {replayError}. Check the backend connection.</p>}
-          {(filter === "all" || filter === "uploaded") && shownVideos.length > 0 && <div className="vg-library-section"><div className="vg-section-line"><h3>Your uploaded videos</h3><span>{shownVideos.length} {shownVideos.length===1?"clip":"clips"}</span></div><div className="vg-card-grid">{shownVideos.map(item=><VideoCard item={item} key={item.id}/>)}</div></div>}
+          {!REPLAY_ONLY && videos.length > 0 && <div className="vg-library-delete-bar">
+            <span>Manage uploaded videos ({videos.length} shown)</span>
+            <button className="vg-card-delete-all" type="button" disabled={deleting} onClick={()=>void clearLibrary()}>
+              {deleting ? "Deleting…" : "Delete all uploaded videos"}
+            </button>
+          </div>}
+          {deleteError && <div role="alert" className="vg-library-alert">{deleteError}</div>}
+          {(filter === "all" || filter === "uploaded") && shownVideos.length > 0 && <div className="vg-library-section"><div className="vg-section-line"><h3>Your uploaded videos</h3><span>{shownVideos.length} {shownVideos.length===1?"clip":"clips"}</span></div><div className="vg-card-grid">{shownVideos.map(item=><div className="vg-deletable-card" key={item.id}>
+            <VideoCard item={item}/>
+            <button type="button" className="vg-card-delete" disabled={deleting} onClick={()=>void removeVideo(item)}
+              aria-label={`Delete ${item.name} and related analyses`}>{deleting ? "Working…" : "Delete video"}</button>
+          </div>)}</div></div>}
           {(filter === "all" || filter === "replay") && shownScenarios.length > 0 && <div className="vg-library-section"><div className="vg-section-line"><h3>Interactive synthetic demos</h3><span>No model credits · Not actual video</span></div><div className="vg-card-grid">{shownScenarios.map(item=><ReplayCard item={item} key={item.id}/>)}</div></div>}
           {(filter === "all" || filter === "planned") && shownPlanned.length > 0 && <div className="vg-library-section"><div className="vg-section-line"><h3>Future SceneOps concepts</h3><span>Not available for analysis</span></div><div className="vg-card-grid">{shownPlanned.map(item=><article className="vg-video-card vg-video-card-planned" key={item.id}><div className="vg-video-card-art"><SceneVisual theme={item.theme}/><span className="vg-content-chip vg-chip-planned">PLANNED</span></div><div className="vg-card-body"><strong>{item.title}</strong><p>{item.description}</p><span className="vg-card-future">Additional model concepts and rules required</span></div></article>)}</div></div>}
           {!hasContent && <div className="vg-empty-state"><strong>No matching scenes</strong><p>{filter === "uploaded" ? "Your uploaded videos appear here automatically after a successful upload." : "Try a different search or filter."}</p></div>}
