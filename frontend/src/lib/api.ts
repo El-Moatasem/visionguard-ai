@@ -9,6 +9,10 @@ export type VideoItem = {
   library_source?: "upload" | "demo";
   scenario_id?: string | null;
   suggested_concepts?: string[];
+  analysis_source_video_id?: string;
+  analysis_source_sha256?: string;
+  analysis_start_seconds?: number;
+  analysis_duration_seconds?: number;
   sam_compatible_container: boolean;
   note: string;
   file_url: string;
@@ -33,6 +37,13 @@ export async function uploadVideo(file: File, scenarioId?: string | null): Promi
   form.append("file", file, file.name);
   return readResponse<VideoItem>(await fetch(`${API}/videos${scenarioId ? `?scenario_id=${encodeURIComponent(scenarioId)}` : ""}`, { method: "POST", body: form }));
 }
+export async function prepareVideoForSam(videoId: string, startSeconds: number, durationSeconds: number): Promise<VideoItem> {
+  return readResponse<VideoItem>(await fetch(`${API}/videos/${encodeURIComponent(videoId)}/prepare-for-sam`, {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({start_seconds: startSeconds, duration_seconds: durationSeconds}),
+  }));
+}
+
 export async function fetchVideos(): Promise<VideoItem[]> {
   const data = await readResponse<{ items: VideoItem[] }>(
     await fetch(`${API}/videos`, { cache: "no-store" })
@@ -67,7 +78,9 @@ export const APPROVED_CONCEPTS = ["person", "forklift", "car", "shopping_cart", 
 export type TrackingJob = {
   id: string;
   video_id: string;
-  status: "queued" | "running" | "completed" | "failed" | "interrupted";
+  status: "queued" | "running" | "cancelling" | "cancelled" | "completed" | "failed" | "interrupted";
+  cancel_requested?: boolean;
+  cancelled_at?: string;
   model: string;
   concepts: string[];
   phase?: string;
@@ -120,6 +133,18 @@ export async function startTracking(videoId: string, concepts?: string[]): Promi
     method: "POST", headers: {"Content-Type": "application/json"},
     body: JSON.stringify({concepts: concepts ?? ["person", "forklift"]})
   }));
+}
+export async function fetchActiveTrackingJobs(): Promise<TrackingJob[]> {
+  const result = await readResponse<{items: TrackingJob[]}>(
+    await fetch(`${API}/tracking-jobs/active`, {cache: "no-store"}));
+  return result.items;
+}
+export async function cancelTrackingJob(jobId: string): Promise<TrackingJob> {
+  return readResponse<TrackingJob>(await fetch(`${API}/tracking-jobs/${encodeURIComponent(jobId)}/cancel`, {method: "POST"}));
+}
+export async function cancelAllTrackingJobs(): Promise<{items: TrackingJob[]; count: number}> {
+  return readResponse<{items: TrackingJob[]; count: number}>(
+    await fetch(`${API}/tracking-jobs/cancel-all`, {method: "POST"}));
 }
 export async function fetchTrackingJobs(videoId: string): Promise<TrackingJob[]> {
   const data = await readResponse<{items: TrackingJob[]}>(await fetch(`${API}/videos/${encodeURIComponent(videoId)}/tracking-jobs`, {cache: "no-store"}));
