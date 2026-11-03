@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import os
 import re
 import time
@@ -28,6 +29,18 @@ ALLOWED_EXTENSIONS = {".mp4": "video/mp4", ".mov": "video/quicktime"}
 MAX_BYTES = min(100 * 1024 * 1024, max(1, int(os.getenv("SAM_MAX_FILE_MIB", "100"))) * 1024 * 1024)
 MAX_VIDEO_SECONDS = min(600.0, max(1.0, float(os.getenv("SAM_MAX_DURATION_SECONDS", "120"))))
 MAX_VIDEO_FRAMES = 15000  # Meta SAM 3.1 model ceiling
+
+
+def preview_interval_seconds() -> float:
+    """Bound preview JSON work while keeping the first model snapshot immediate."""
+    raw = os.getenv("SAM_PREVIEW_INTERVAL_SECONDS", "4").strip()
+    try:
+        interval = float(raw)
+    except ValueError as exc:
+        raise ValueError("SAM_PREVIEW_INTERVAL_SECONDS must be a number from 1 to 15") from exc
+    if not math.isfinite(interval) or not 1 <= interval <= 15:
+        raise ValueError("SAM_PREVIEW_INTERVAL_SECONDS must be a number from 1 to 15")
+    return interval
 
 
 def validate_video(path: Path) -> str:
@@ -220,6 +233,9 @@ async def run_video(path: Path, concepts: list[str], output: Path,
         raise ValueError("Repeat concepts are not supported")
     if concurrent is None:
         concurrent = os.getenv("SAM_CONCURRENT_CONCEPTS", "0") == "1"
+    # Validate before starting a paid API upload. Parsing snapshots still
+    # processes official SAM events; this only reduces preview serialization.
+    preview_interval = preview_interval_seconds() if progress_callback is not None else 4.0
     from openai import AsyncOpenAI
 
     def progress(event: dict[str, Any]) -> None:
@@ -232,7 +248,10 @@ async def run_video(path: Path, concepts: list[str], output: Path,
             print(f"Uploading video: {path.name}", flush=True)
             started = time.perf_counter()
             file_id = await upload_video(client, path)
-            print(f"Meta Files API ID (reuse with --file-id): {file_id}; upload_seconds={time.perf_counter()-started:.2f}", flush=True)
+            upload_elapsed = time.perf_counter() - started
+            print(f"Meta Files API ID (reuse with --file-id): {file_id}; upload_seconds={upload_elapsed:.2f}", flush=True)
+            progress({"phase": "upload_completed", "upload_seconds": round(upload_elapsed, 3),
+                      "message": "Video upload complete; starting concept tracking"})
 
         async def one(concept: str) -> dict[str, Any]:
             started = time.perf_counter()
@@ -244,7 +263,7 @@ async def run_video(path: Path, concepts: list[str], output: Path,
             def on_snapshot(snapshot: Any) -> None:
                 nonlocal last_preview
                 now = time.monotonic()
-                if snapshot.revision != 1 and now - last_preview < 2.0:
+                if snapshot.revision != 1 and now - last_preview < preview_interval:
                     return
                 last_preview = now
                 # Snapshot records may include large masks. Only box fields are exported.
@@ -278,7 +297,7 @@ async def run_video(path: Path, concepts: list[str], output: Path,
                   f"postprocess_seconds={time.perf_counter()-post_started:.2f}", flush=True)
             print(f"  output: {location / 'summary.json'}", flush=True)
             progress({"phase": "concept_completed", "concept": concept,
-                      "summary": summary,
+                      "summary": summary, "inference_seconds": round(infer_elapsed, 3),
                       "message": f"{concept.capitalize()} tracking complete; {summary['box_count']} boxes"})
             return summary
 
