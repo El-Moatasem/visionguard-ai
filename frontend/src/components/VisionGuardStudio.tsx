@@ -191,7 +191,7 @@ export default function VisionGuardStudio({ requestedVideoId, openCamera = false
             {deleteError && <p role="alert" className="error">{deleteError}</p>}
           </section>
           <section className="vg-side-panel"><span className="vg-side-title">05 / ANALYSIS NOTES</span><h2>How the studio works</h2>
-            <p>Use the SAM tracking section below your video to start billable inference. Supported concepts are <strong>person</strong> and <strong>forklift</strong>. Then draw a zone, run a supported rule, and inspect evidence.</p>
+            <p>Use the SAM tracking section below your video to start billable inference. Supported tracking concepts include people, forklifts, cars, shopping carts, cardboard boxes and excavators. The retail preset can track people, carts and boxes in one job (three separate billable concept requests). Then draw a zone, run a supported rule, and inspect evidence.</p>
             <p>Stored uploads can be up to 100 MiB. SAM preflight currently requires an MP4/MOV of at most 100 MiB, {maxSamSeconds} seconds, 15,000 frames, and 1080p/30 FPS, with FFprobe available on the backend.</p>
             <p>Tracking runs after a clip is captured or uploaded. It is not continuous live-camera analysis or safety certification.</p>
           </section>
