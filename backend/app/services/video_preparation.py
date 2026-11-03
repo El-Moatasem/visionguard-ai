@@ -22,7 +22,7 @@ from backend.app.services import db_store
 from backend.app.services.video_store import (
     VideoUploadError, get_video_file, save_video, storage_dir,
 )
-from backend.app.services.sam import MAX_BYTES as SAM_MAX_BYTES
+from backend.app.services.sam import MAX_BYTES as SAM_MAX_BYTES, MAX_VIDEO_SECONDS, MAX_VIDEO_FRAMES
 
 
 class VideoPreparationError(Exception):
@@ -63,7 +63,7 @@ def _encode(src: Path, dst: Path, start: float, duration: float) -> None:
             str(dst),
         ]
         try:
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=180, check=False)
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=max(180, int(duration * 3)), check=False)
         except subprocess.TimeoutExpired as exc:
             raise VideoPreparationError("Video preparation timed out. Choose a shorter segment.", 504) from exc
         except OSError as exc:
@@ -73,14 +73,14 @@ def _encode(src: Path, dst: Path, start: float, duration: float) -> None:
         if dst.exists() and 0 < dst.stat().st_size <= SAM_MAX_BYTES:
             return
         dst.unlink(missing_ok=True)
-    raise VideoPreparationError("Prepared clip remains larger than 25 MiB. Select a shorter segment.", 413)
+    raise VideoPreparationError("Prepared clip remains larger than the configured SAM file-size limit. Select a shorter segment.", 413)
 
 
 async def prepare_for_sam(video_id: str, start_seconds: float, duration_seconds: float) -> dict:
     if not all(math.isfinite(x) for x in (start_seconds, duration_seconds)):
         raise VideoPreparationError("Start time and duration must be finite numbers.")
-    if start_seconds < 0 or start_seconds > 3600 or not 0 < duration_seconds <= 30:
-        raise VideoPreparationError("Choose a start between 0 and 3600 seconds and a segment up to 30 seconds.")
+    if start_seconds < 0 or start_seconds > 3600 or not 0 < duration_seconds <= MAX_VIDEO_SECONDS:
+        raise VideoPreparationError("Choose a start between 0 and 3600 seconds and a segment within the configured SAM duration limit.")
 
     try:
         source, original = get_video_file(video_id)
@@ -109,10 +109,12 @@ async def prepare_for_sam(video_id: str, start_seconds: float, duration_seconds:
             raise VideoPreparationError("Prepared video has invalid FPS or dimensions.")
         if probe.get("codec") != "h264" or probe["fps"] > 30 or max(probe["width"], probe["height"]) > 1920:
             raise VideoPreparationError("Prepared video did not meet codec, resolution, or FPS requirements.")
-        if not isinstance(probe.get("duration_seconds"), (int, float)) or probe["duration_seconds"] > 30.05:
-            raise VideoPreparationError("Prepared clip exceeds the 30-second analysis limit.")
+        if not isinstance(probe.get("duration_seconds"), (int, float)) or probe["duration_seconds"] > MAX_VIDEO_SECONDS + 0.05:
+            raise VideoPreparationError("Prepared clip exceeds the configured duration limit.")
+        if probe["duration_seconds"] * probe["fps"] > MAX_VIDEO_FRAMES + 1:
+            raise VideoPreparationError("Prepared clip exceeds Meta SAM 3.1's 15,000-frame ceiling.", 413)
         if not output.is_file() or not 0 < output.stat().st_size <= SAM_MAX_BYTES:
-            raise VideoPreparationError("Prepared clip exceeds the 25 MiB inference limit.", 413)
+            raise VideoPreparationError("Prepared clip exceeds the configured SAM file-size limit.", 413)
 
         # Reuse the existing upload validator rather than writing directly to
         # the library. A distinct ID ensures playback and SAM use identical bytes.

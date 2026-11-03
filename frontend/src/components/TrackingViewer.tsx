@@ -193,7 +193,7 @@ export default function TrackingViewer({ video, initialRule }: { video: VideoIte
   const timelineMax = displayReport?.media_probe.duration_seconds ?? (fps ? Math.max(1, (displayReport?.boxes.at(-1)?.frame ?? 30) / fps) : 0);
   const timelineEntries = [...(evaluation?.events ?? []).map(x => ({type: "event" as const, start: x.start_seconds_approx, end: x.end_seconds_approx, id: x.event_id})),
     ...(evaluation?.review_items ?? []).map((x, i) => ({type: "review" as const, start: x.start_seconds_approx, end: x.end_seconds_approx, id: x.event_id ?? `review-${i}`}))];
-  const samMaxBytes = 25 * 1024 * 1024;
+  const samMaxBytes = 100 * 1024 * 1024;
   const tooLargeForSam = video.size_bytes > samMaxBytes;
   const busy = submitting || cancelling || ["queued", "running", "cancelling"].includes(job?.status ?? "");
 
@@ -278,7 +278,7 @@ export default function TrackingViewer({ video, initialRule }: { video: VideoIte
       {job?.status === "cancelling" && <p className="helper" role="status">Stopping this job locally. Charges may still apply to Meta requests already started.</p>}
       {job?.status === "cancelled" && <p className="helper" role="status">Analysis cancelled; no final tracking result was published.</p>}
       {!video.sam_compatible_container && <p className="error">WebM is not supported by SAM. Convert to H.264 MP4 first.</p>}
-      {tooLargeForSam && <p className="error">This video exceeds the 25 MiB SAM analysis limit. Uploads may be up to 100 MiB, but clips must be compressed before inference.</p>}
+      {tooLargeForSam && <p className="error">This video exceeds this app’s 100 MiB SAM analysis limit. Prepare a smaller clip before inference.</p>}
       {job && <p className="helper" role="status">{job.message}</p>}
       {preview && !report && <p className="helper" role="status">
         Live progress preview: {preview.box_count} observed boxes so far.

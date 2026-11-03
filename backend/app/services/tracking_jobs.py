@@ -281,7 +281,7 @@ def create_job(video_id: str, requested_concepts: list[str] | None = None) -> di
     if not video["sam_compatible_container"]:
         raise TrackingError("SAM 3.1 accepts MP4/MOV, not WebM. Convert this clip locally first.", 415)
     # Fail before creating a paid job when the SAM adapter would reject it.
-    from backend.app.services.sam import MAX_BYTES as SAM_MAX_BYTES
+    from backend.app.services.sam import MAX_BYTES as SAM_MAX_BYTES, MAX_VIDEO_SECONDS, MAX_VIDEO_FRAMES
     if video_path.stat().st_size > SAM_MAX_BYTES:
         raise TrackingError(
             f"Video is too large for SAM analysis ({SAM_MAX_BYTES // (1024 * 1024)} MiB). "
@@ -306,8 +306,18 @@ def create_job(video_id: str, requested_concepts: list[str] | None = None) -> di
                             "Prepare the uploaded clip first (e.g. --height 480 --fps 12).", 413)
     if probe.get("codec") not in {"h264", "hevc", "mpeg4"}:
         raise TrackingError("Unsupported video codec for SAM 3.1; use H.264, H.265, or MPEG-4.", 415)
-    if probe.get("duration_seconds") is not None and probe["duration_seconds"] > 30:
-        raise TrackingError("Use a clip up to 30 seconds for this demo to bound API usage.", 413)
+    duration = probe.get("duration_seconds")
+    if (not isinstance(duration, (float, int)) or isinstance(duration, bool)
+            or not math.isfinite(duration) or duration <= 0):
+        raise TrackingError("Video duration could not be verified; prepare a readable MP4 before paid SAM inference.", 422)
+    if duration > MAX_VIDEO_SECONDS + 0.05:
+        raise TrackingError(
+            f"This app allows at most {MAX_VIDEO_SECONDS:g} seconds per SAM job. "
+            "Prepare a shorter segment or configure SAM_MAX_DURATION_SECONDS.", 413)
+    if duration * probe["fps"] > MAX_VIDEO_FRAMES + 1:
+        raise TrackingError(
+            f"This clip exceeds Meta SAM 3.1's {MAX_VIDEO_FRAMES:,}-frame ceiling. "
+            "Prepare a shorter or lower-FPS clip.", 413)
     # Use one concept for the first short live test, then enable both for the demo.
     # An explicit environment override is useful for controlled debugging.
     # Otherwise, the prepared demo's concepts select the model prompts.
