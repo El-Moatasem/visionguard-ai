@@ -160,3 +160,45 @@
   color: transparent;
   font-size: 0;
 }
+
+/* SAM progress reports completed concepts only, never a fabricated frame percentage. */
+.vg-sam-progress{display:flex;flex-direction:column;gap:7px;margin:13px 0;padding:13px 15px;background:#112e35;border:1px solid #2c5660;border-radius:10px;color:#d6f1ed}
+.vg-sam-progress strong{font-size:13px;font-weight:700}
+.vg-sam-progress span{font-size:12px;color:#a9c7ce;line-height:1.5}
+.vg-sam-progress progress{width:100%;height:8px;accent-color:#45d9b7}
+
+/* SAM progress: confirmed completed concepts + animated current concept.
+   Revisions are NOT a known percentage of total inference. */
+.vg-sam-progress-track {
+  display: flex;
+  width: 100%;
+  height: 10px;
+  gap: 3px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #34525b;
+}
+.vg-sam-progress-segment {
+  display: block;
+  min-width: 0;
+  flex: 1 1 0;
+  background: #4b6870;
+}
+.vg-sam-progress-segment.is-finished {
+  background: #45d9b7;
+}
+.vg-sam-progress-segment.is-active {
+  background: linear-gradient(90deg, #2c6b69 0%, #6fe6cb 50%, #2c6b69 100%);
+  background-size: 220% 100%;
+  animation: vg-sam-active-motion 1.5s ease-in-out infinite;
+}
+@keyframes vg-sam-active-motion {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vg-sam-progress-segment.is-active {
+    animation: none;
+    background: #2a9b8e;
+  }
+}

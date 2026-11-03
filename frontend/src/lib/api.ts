@@ -103,6 +103,9 @@ export type TrackingJob = {
   revision?: number;
   failure_type?: string;
   concepts_completed?: string[];
+  current_concept?: string | null;
+  upload_seconds?: number;
+  last_concept_inference_seconds?: number;
   created_at: string;
   message: string;
   result_url: string;
