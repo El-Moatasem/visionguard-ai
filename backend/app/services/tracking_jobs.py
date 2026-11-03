@@ -411,6 +411,7 @@ async def _process_job_async(job_id: str) -> None:
         _ensure_not_cancelled(job_id)
         record["status"] = "running"
         record["phase"] = "uploading"
+        record["current_concept"] = None
         record["message"] = "Sending authorized clip to Meta SAM 3.1."
         _write(_paths(job_id)[0], record)
         _ensure_not_cancelled(job_id)
@@ -419,6 +420,12 @@ async def _process_job_async(job_id: str) -> None:
             _ensure_not_cancelled(job_id)
             phase = str(event["phase"])
             concept = event.get("concept")
+            if concept in record["concepts"]:
+                record["current_concept"] = concept
+            if phase == "upload_completed":
+                record["upload_seconds"] = float(event.get("upload_seconds", 0))
+            if phase == "concept_completed":
+                record["last_concept_inference_seconds"] = float(event.get("inference_seconds", 0))
             if phase == "streaming" and concept in record["concepts"]:
                 streamed[concept] = _safe_preview_boxes(concept, event.get("boxes", []))
             if phase == "concept_completed" and concept in record["concepts"]:
@@ -449,6 +456,7 @@ async def _process_job_async(job_id: str) -> None:
                                     progress_callback=on_progress)
         _ensure_not_cancelled(job_id)
         record["phase"] = "building_report"
+        record["current_concept"] = None
         record["message"] = "Preparing final tracked observations and uncertainty gaps."
         _write(_paths(job_id)[0], record)
         report = await asyncio.to_thread(build_tracking_report, summaries, record["media_probe"])

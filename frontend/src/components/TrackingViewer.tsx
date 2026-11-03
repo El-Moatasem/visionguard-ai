@@ -15,6 +15,7 @@ const PALETTE: Record<string, string> = {
 const MODES = [
   {name: "Warehouse: people + forklifts", concepts: ["person","forklift"]},
   {name: "Parking: cars", concepts: ["car"]},
+  {name: "Retail: people + carts", concepts: ["person","shopping_cart"]},
   {name: "Retail: people + carts + boxes", concepts: ["person","shopping_cart","cardboard_box"]},
   {name: "Retail: carts + boxes (without people)", concepts: ["shopping_cart","cardboard_box"]},
   {name: "Construction: worker zone entry (person only)", concepts: ["person"]},
@@ -61,7 +62,13 @@ export default function TrackingViewer({ video, initialRule }: { video: VideoIte
     setError("");
     setDrawing(false); setDrawStart(null); setDrawCurrent(null); setApprovedRule(null); setEvaluation(null);
     void fetchTrackingJobs(video.id).then((jobs) => {
-      if (current) setJob(jobs[0] ?? null);
+      if (current) {
+        const latest = jobs[0] ?? null;
+        setJob(latest);
+        // Show the actual concepts for a resumed or saved analysis, not a
+        // default preset from another industry. Never alter a paid job.
+        if (latest) setConceptSelection([...latest.concepts]);
+      }
     }).catch((err: unknown) => {
       if (current) setError(err instanceof Error ? err.message : "Could not read tracking jobs");
     });
@@ -209,6 +216,12 @@ export default function TrackingViewer({ video, initialRule }: { video: VideoIte
   const samMaxBytes = 100 * 1024 * 1024;
   const tooLargeForSam = video.size_bytes > samMaxBytes;
   const busy = submitting || cancelling || ["queued", "running", "cancelling"].includes(job?.status ?? "");
+  const jobInProgress = Boolean(job && ["queued", "running", "cancelling"].includes(job.status));
+  // A running job's immutable requested concepts always take precedence over
+  // any future-run UI selection. This fixes misleading warehouse/retail labels.
+  const visibleConcepts = jobInProgress && job ? job.concepts : conceptSelection;
+  const completedConcepts = job?.concepts_completed?.length ?? 0;
+  const currentConceptNumber = job?.current_concept ? job.concepts.indexOf(job.current_concept) + 1 : 0;
 
   return <div className="tracking-viewer">
     <div className="tracking-player">
@@ -274,17 +287,28 @@ export default function TrackingViewer({ video, initialRule }: { video: VideoIte
       <div className="tracking-tools-header"><div><span className="eyebrow">03 / VISUAL TRACKING</span><h3>Meta SAM 3.1 analysis</h3></div>
       <span className={`tracking-state ${job?.status === "completed" ? "is-ok" : ""}`}>{job?.status ?? "Not analyzed"}</span></div>
       <p className="helper">SAM 3.1 tracks selected concepts on an authorized uploaded clip. Each concept is a separate billable request; live-camera alerting and certified danger detection are NOT provided.</p>
-      <div className="sceneops-concepts"><label className="safety-label" htmlFor="sceneops-concepts">Tracking concepts</label>
-        <select id="sceneops-concepts" className="safety-input" disabled={busy} value={MODES.findIndex(m=>m.concepts.join()===conceptSelection.join()) >= 0 ? conceptSelection.join() : "custom"}
+      <div className="sceneops-concepts"><label className="safety-label" htmlFor="sceneops-concepts">{jobInProgress ? "Tracking concepts (current job)" : "Tracking concepts (next analysis)"}</label>
+        <select id="sceneops-concepts" className="safety-input" disabled={busy} value={MODES.some(m=>m.concepts.join()===visibleConcepts.join()) ? visibleConcepts.join() : "custom"}
           onChange={e=>setConceptSelection(e.target.value.split(","))}>
           {MODES.map(m=><option key={m.name} value={m.concepts.join()}>{m.name}</option>)}
-          {!MODES.some(m=>m.concepts.join()===conceptSelection.join()) && <option value="custom" disabled>Custom: {conceptSelection.join(", ")}</option>}
+          {!MODES.some(m=>m.concepts.join()===visibleConcepts.join()) && <option value="custom" disabled>Custom: {visibleConcepts.join(", ")}</option>}
         </select>
       </div>
       {job && <p className="helper" role="status">
-        {job.status === "running" || job.status === "queued" || job.status === "cancelling" ? "Current analysis" : "Saved analysis"} requested: <strong>{job.concepts.join(", ")}</strong>.
-        {job.concepts.join() !== conceptSelection.join() && " The selected preset applies only to a NEW billable SAM analysis; it does not alter this job."}
+        {jobInProgress ? "Current analysis" : "Saved analysis"} requested: <strong>{job.concepts.join(", ")}</strong>.
+        {!jobInProgress && job.concepts.join() !== conceptSelection.join() && " The selected preset applies only to a NEW billable SAM analysis; it does not alter this job."}
       </p>}
+      {job && jobInProgress && <div className="vg-sam-progress" role="status" aria-live="polite">
+        <strong>{job.status === "cancelling" ? "Cancelling local analysis" :
+          job.phase === "uploading" ? "Uploading video to Meta" :
+          job.phase === "building_report" ? "Building final tracking report" :
+          job.phase === "concept_completed" ? `Finished ${job.current_concept?.replaceAll("_", " ") ?? "concept"}` :
+          currentConceptNumber > 0 ? `Tracking ${job.current_concept?.replaceAll("_", " ")} (${currentConceptNumber} of ${job.concepts.length})` :
+          "Preparing model analysis"}</strong>
+        <span>{completedConcepts} of {job.concepts.length} concepts finished. This bar counts completed concepts, not frames processed.</span>
+        <progress value={completedConcepts} max={Math.max(1, job.concepts.length)} aria-label="Completed SAM concepts" />
+        {typeof job.upload_seconds === "number" && <span>Meta upload: {job.upload_seconds.toFixed(1)}s</span>}
+      </div>}
       <button type="button" className="button button-primary" disabled={busy || !video.sam_compatible_container || tooLargeForSam}
         onClick={() => void analyze()}>{busy ? "Analyzing…" : job?.status === "completed" ? "Run fresh analysis (billable)" : "Analyze with SAM (billable)"}</button>
       {["queued", "running"].includes(job?.status ?? "") && <button type="button" className="button button-alert"
