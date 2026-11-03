@@ -24,6 +24,7 @@ from backend.app.services.sam import run_video
 from backend.app.services.tracking_report import build_tracking_report
 from backend.app.services.video_store import VideoUploadError, get_video_file, storage_dir
 from backend.app.services.sceneops_concepts import normalize_concept
+from backend.app.services import db_store
 
 logger = logging.getLogger(__name__)
 _LOCK = threading.Lock()
@@ -79,6 +80,11 @@ def _preview_path(job_id: str) -> Path:
 
 
 def _write(path: Path, data: dict[str, Any]) -> None:
+    if db_store.enabled():
+        if path.name.endswith(".result.json"):
+            db_store.put_result(data)
+        elif path.name.endswith(".json") and not path.name.endswith(".preview.json"):
+            db_store.put_job(data)
     path.parent.mkdir(parents=True, exist_ok=True)
     temp = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
     try:
@@ -90,6 +96,11 @@ def _write(path: Path, data: dict[str, Any]) -> None:
 
 def _read_record(job_id: str) -> dict[str, Any]:
     path, _ = _paths(job_id)
+    if db_store.enabled():
+        record = db_store.get_job(job_id)
+        if record is None:
+            raise TrackingError("Tracking job not found", 404)
+        return record
     if not path.is_file():
         raise TrackingError("Tracking job not found", 404)
     try:
@@ -180,6 +191,8 @@ def list_jobs(video_id: str) -> list[dict[str, Any]]:
         get_video_file(video_id)
     except VideoUploadError as exc:
         raise TrackingError(exc.message, exc.status_code) from exc
+    if db_store.enabled():
+        return [get_job(item["id"]) for item in db_store.list_jobs(video_id, 10)]
     root = tracking_dir()
     if not root.is_dir():
         return []
@@ -246,6 +259,18 @@ def probe_video(path: Path) -> dict[str, Any]:
         return {"available": False, "warning": "Could not inspect input video"}
 
 
+def sam_max_active_jobs() -> int:
+    # Process-local limit only; not a distributed lock or durable queue.
+    raw = os.getenv("SAM_MAX_ACTIVE_JOBS", "1").strip()
+    try:
+        value = int(raw)
+    except ValueError as exc:
+        raise TrackingError("SAM_MAX_ACTIVE_JOBS must be 1 or 2", 503) from exc
+    if value not in (1, 2):
+        raise TrackingError("SAM_MAX_ACTIVE_JOBS must be 1 or 2", 503)
+    return value
+
+
 def create_job(video_id: str, requested_concepts: list[str] | None = None) -> dict[str, Any]:
     try:
         video_path, video = get_video_file(video_id)
@@ -295,9 +320,12 @@ def create_job(video_id: str, requested_concepts: list[str] | None = None) -> di
     if not 1 <= len(concepts) <= 3 or len(set(concepts)) != len(concepts):
         raise TrackingError("Select 1–3 unique supported SAM concepts", 422)
     job_id = str(uuid.uuid4())
+    max_active = sam_max_active_jobs()
     with _LOCK:
-        if _ACTIVE:
-            raise TrackingError("Another SAM job is active. Retry when it finishes.", 409)
+        if len(_ACTIVE) >= max_active:
+            raise TrackingError(
+                f"Maximum concurrent SAM jobs reached ({max_active}). Retry when a slot is free.", 409
+            )
         # Revalidate under the same gate used by local video deletion.
         try:
             get_video_file(video_id)
@@ -458,6 +486,11 @@ def get_result(job_id: str) -> dict[str, Any]:
     if record["status"] != "completed":
         raise TrackingError("Tracking result is not ready", 409)
     _, result = _paths(job_id)
+    if db_store.enabled():
+        report = db_store.get_result(job_id)
+        if report is None:
+            raise TrackingError("Tracking result is missing", 500)
+        return report
     if not result.is_file():
         raise TrackingError("Tracking result is missing", 500)
     return json.loads(result.read_text(encoding="utf-8"))
