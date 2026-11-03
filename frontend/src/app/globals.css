@@ -130,3 +130,13 @@
 .sceneops-concepts .safety-input{width:auto;flex:1;min-width:150px}
 @media(max-width:1050px){.sceneops-demo-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:620px){.sceneops-demo-grid{grid-template-columns:1fr}.sceneops-filters{grid-template-columns:1fr}}
+
+/* Reviewer-defined monitoring zone, available before SAM inference. */
+.vg-pre-sam-zone-toolbar{padding:14px 19px;border-top:1px solid #294451;border-bottom:1px solid #294451;background:#102a33;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+.vg-pre-sam-zone-copy{flex:1 1 280px;min-width:0}
+.vg-pre-sam-zone-copy strong{color:#d7f5ed;font-size:13px}
+.vg-pre-sam-zone-copy .helper{margin:5px 0 0}
+.vg-pre-sam-zone-buttons{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.vg-pre-sam-zone-toolbar .button{padding:10px 12px}
+.vg-pre-sam-zone-toolbar .safety-warning{margin:0;flex-basis:100%}
+@media(max-width:570px){.vg-pre-sam-zone-buttons{width:100%}.vg-pre-sam-zone-buttons .button{flex:1}}
