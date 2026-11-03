@@ -306,7 +306,20 @@ export default function TrackingViewer({ video, initialRule }: { video: VideoIte
           currentConceptNumber > 0 ? `Tracking ${job.current_concept?.replaceAll("_", " ")} (${currentConceptNumber} of ${job.concepts.length})` :
           "Preparing model analysis"}</strong>
         <span>{completedConcepts} of {job.concepts.length} concepts finished. This bar counts completed concepts, not frames processed.</span>
-        <progress value={completedConcepts} max={Math.max(1, job.concepts.length)} aria-label="Completed SAM concepts" />
+        <div className="vg-sam-progress-track" role="progressbar"
+                   aria-label="Completed SAM concepts" aria-valuemin={0}
+                   aria-valuemax={Math.max(1, job.concepts.length)} aria-valuenow={completedConcepts}
+                   aria-valuetext={`${completedConcepts} of ${job.concepts.length} concepts finished; ${job.current_concept ? `tracking ${job.current_concept.replaceAll("_", " ")}` : "preparing"}`}>
+                   {job.concepts.map((concept) => {
+                     const finished = job.concepts_completed?.includes(concept) ?? false;
+                     const active = job.status === "running" && job.current_concept === concept &&
+                       ["segmenting", "streaming", "summarizing"].includes(job.phase ?? "");
+                     return <span key={concept}
+                       className={`vg-sam-progress-segment${finished ? " is-finished" : ""}${active && !finished ? " is-active" : ""}`}
+                       title={`${concept.replaceAll("_", " ")}: ${finished ? "completed" : active ? "streaming" : "pending"}`}
+                       aria-hidden="true" />;
+                   })}
+                 </div>
         {typeof job.upload_seconds === "number" && <span>Meta upload: {job.upload_seconds.toFixed(1)}s</span>}
       </div>}
       <button type="button" className="button button-primary" disabled={busy || !video.sam_compatible_container || tooLargeForSam}
