@@ -43,7 +43,7 @@ def test_reject_invalid_segment_without_spending(monkeypatch, tmp_path):
         "available": True, "duration_seconds": 37, "width": 640, "height": 360, "fps": 12, "codec": "h264"})
     for payload in ({"start_seconds": 29, "duration_seconds": 20},
                     {"start_seconds": -1, "duration_seconds": 20},
-                    {"start_seconds": 0, "duration_seconds": 37}):
+                    {"start_seconds": 0, "duration_seconds": 121}):
         response = client.post(f"/api/v1/videos/{original['id']}/prepare-for-sam", json=payload)
         assert response.status_code == 422, response.text
     assert len(client.get("/api/v1/videos").json()["items"]) == 1

@@ -13,7 +13,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from backend.app.services import tracking_jobs
+from backend.app.services import tracking_jobs, db_store
 from backend.app.services.evidence_store import root as evidence_dir
 from backend.app.services.video_store import VideoUploadError, read_video, storage_dir
 
@@ -29,6 +29,8 @@ def _enabled() -> None:
 
 
 def _records() -> dict[str, dict[str, Any]]:
+    if db_store.enabled():
+        return {row["id"]: row for row in db_store.list_videos(limit=None)}
     base = storage_dir()
     records = {}
     for path in base.glob("*.json") if base.is_dir() else []:
@@ -57,6 +59,9 @@ def _select(ids: set[str], records: dict[str, dict[str, Any]]) -> set[str]:
 
 
 def _job_records(video_ids: set[str]) -> dict[str, dict[str, Any]]:
+    if db_store.enabled():
+        return {row["id"]: row for row in db_store.list_jobs(limit=None)
+                if row.get("video_id") in video_ids}
     root = tracking_jobs.tracking_dir()
     results = {}
     for path in root.glob("*.json") if root.is_dir() else []:
@@ -74,6 +79,10 @@ def _job_records(video_ids: set[str]) -> dict[str, dict[str, Any]]:
 
 
 def _evidence_files(video_ids: set[str], job_ids: set[str]) -> list[Path]:
+    if db_store.enabled():
+        return [evidence_dir() / f'{row["id"]}.json' for row in db_store.list_evidence(limit=None)
+                if (row.get("source") or {}).get("video_id") in video_ids
+                or (row.get("source") or {}).get("tracking_job_id") in job_ids]
     root = evidence_dir()
     found = []
     for path in root.glob("*.json") if root.is_dir() else []:
@@ -118,6 +127,8 @@ def delete_library(video_id: str | None = None, *, confirm_all: str | None = Non
         # Inactive stale queued/running job files from a previous process may be
         # removed; only jobs registered in _ACTIVE can still be writing here.
         evidence = _evidence_files(selected, set(jobs))
+        if db_store.enabled():
+            db_store.delete_graph(selected, set(jobs))
         # Remove evidence and dependent job artifacts first, then video bytes and metadata.
         # Each path uses an ID-generated basename; no client filename is trusted.
         for path in evidence:

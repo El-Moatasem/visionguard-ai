@@ -23,6 +23,7 @@ export default function VisionGuardStudio({ requestedVideoId, openCamera = false
   const [error, setError] = useState("");
   const [uploadError, setUploadError] = useState("");
   const [prepareStart, setPrepareStart] = useState(0);
+  const maxSamSeconds = Math.min(600, Math.max(1, Number(process.env.NEXT_PUBLIC_SAM_MAX_DURATION_SECONDS || "120") || 120));
   const [prepareDuration, setPrepareDuration] = useState(20);
   const [preparing, setPreparing] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -159,13 +160,13 @@ export default function VisionGuardStudio({ requestedVideoId, openCamera = false
                 <input className="safety-input" type="number" min={0} max={3600} step={0.5} value={prepareStart}
                   onChange={e=>setPrepareStart(Number(e.target.value))} disabled={preparing}/>
               </label>
-              <label className="safety-label">Duration (max 30s)
-                <input className="safety-input" type="number" min={0.5} max={30} step={0.5} value={prepareDuration}
+              <label className="safety-label">Duration (max {maxSamSeconds}s)
+                <input className="safety-input" type="number" min={0.5} max={maxSamSeconds} step={0.5} value={prepareDuration}
                   onChange={e=>setPrepareDuration(Number(e.target.value))} disabled={preparing}/>
               </label>
             </div>
             <div className="vg-quick-upload-buttons">
-              <button type="button" className="vg-small-primary" disabled={!selected || preparing || prepareDuration<=0 || prepareDuration>30 || prepareStart<0}
+              <button type="button" className="vg-small-primary" disabled={!selected || preparing || prepareDuration<=0 || prepareDuration>maxSamSeconds || prepareStart<0}
                 onClick={()=>void prepareSelectedVideo()}>{preparing ? "Preparing clip…" : "Prepare MP4 (no Meta charge)"}</button>
             </div>
             {prepareError && <p className="error" role="alert">{prepareError}</p>}
@@ -190,8 +191,8 @@ export default function VisionGuardStudio({ requestedVideoId, openCamera = false
             {deleteError && <p role="alert" className="error">{deleteError}</p>}
           </section>
           <section className="vg-side-panel"><span className="vg-side-title">05 / ANALYSIS NOTES</span><h2>How the studio works</h2>
-            <p>Use the SAM tracking section below your video to start billable inference. Supported concepts are <strong>person</strong> and <strong>forklift</strong>. Then draw a zone, run a supported rule, and inspect evidence.</p>
-            <p>Stored uploads can be up to 100 MiB. SAM preflight currently requires an MP4/MOV of at most 25 MiB, 30 seconds, and 1080p/30 FPS, with FFprobe available on the backend.</p>
+            <p>Use the SAM tracking section below your video to start billable inference. Supported tracking concepts include people, forklifts, cars, shopping carts, cardboard boxes and excavators. The retail preset can track people, carts and boxes in one job (three separate billable concept requests). Then draw a zone, run a supported rule, and inspect evidence.</p>
+            <p>Stored uploads can be up to 100 MiB. SAM preflight currently requires an MP4/MOV of at most 100 MiB, {maxSamSeconds} seconds, 15,000 frames, and 1080p/30 FPS, with FFprobe available on the backend.</p>
             <p>Tracking runs after a clip is captured or uploaded. It is not continuous live-camera analysis or safety certification.</p>
           </section>
         </aside>

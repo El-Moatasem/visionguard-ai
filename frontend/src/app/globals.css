@@ -140,3 +140,23 @@
 .vg-pre-sam-zone-toolbar .button{padding:10px 12px}
 .vg-pre-sam-zone-toolbar .safety-warning{margin:0;flex-basis:100%}
 @media(max-width:570px){.vg-pre-sam-zone-buttons{width:100%}.vg-pre-sam-zone-buttons .button{flex:1}}
+
+
+/* VisionGuard AI identity — built-in asset, no external request. */
+.vg-brand .vg-brand-symbol {
+  background: #061c25 url('/visionguard-logo.png') center / cover no-repeat;
+  color: transparent;
+  font-size: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(69,217,183,.28);
+}
+.brand .brand-mark {
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  background: #061c25 url('/visionguard-logo.png') center / cover no-repeat;
+  border-radius: 50%;
+  color: transparent;
+  font-size: 0;
+}
