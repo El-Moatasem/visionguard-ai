@@ -8,3 +8,7 @@ pytest-asyncio>=0.24,<2
 httpx>=0.27,<1
 python-multipart>=0.0.20,<1
 pydantic>=2.5,<3
+
+# Opt-in Neon/PostgreSQL metadata persistence
+sqlalchemy>=2.0,<3
+psycopg[binary]>=3.2,<4

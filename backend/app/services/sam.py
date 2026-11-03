@@ -23,7 +23,11 @@ from backend.app.config import META_BASE_URL, SAM_MODEL, model_key
 from backend.app.services.sceneops_concepts import concept_prompt, normalize_concept
 
 ALLOWED_EXTENSIONS = {".mp4": "video/mp4", ".mov": "video/quicktime"}
-MAX_BYTES = 25 * 1024 * 1024  # Day 1 cost/speed guard, not an advertised API limit
+# Application-side safety limits. Meta Files API supports larger uploads; these
+# values are deliberate local defaults, not claimed Meta API restrictions.
+MAX_BYTES = min(100 * 1024 * 1024, max(1, int(os.getenv("SAM_MAX_FILE_MIB", "100"))) * 1024 * 1024)
+MAX_VIDEO_SECONDS = min(600.0, max(1.0, float(os.getenv("SAM_MAX_DURATION_SECONDS", "120"))))
+MAX_VIDEO_FRAMES = 15000  # Meta SAM 3.1 model ceiling
 
 
 def validate_video(path: Path) -> str:
@@ -31,7 +35,7 @@ def validate_video(path: Path) -> str:
         raise ValueError(f"Video not found: {path}")
     mime = ALLOWED_EXTENSIONS.get(path.suffix.lower())
     if not mime:
-        raise ValueError("Day 1 accepts .mp4 or .mov; use a short H.264 MP4 for reliability.")
+        raise ValueError("SAM accepts MP4/MOV; H.264 MP4 is recommended for reliability.")
     size = path.stat().st_size
     if not 0 < size <= MAX_BYTES:
         raise ValueError(f"Video size must be between 1 byte and {MAX_BYTES} bytes")
@@ -85,9 +89,12 @@ async def normalized_events(stream: AsyncIterable[Any]) -> AsyncIterator[dict[st
 
 async def upload_video(client: AsyncOpenAI, path: Path) -> str:
     mime = validate_video(path)
-    uploaded = await client.files.create(
-        file=(path.name, path.read_bytes(), mime), purpose="user_data"
-    )
+    # Stream from disk rather than reading a 100 MiB clip into RAM. The SDK
+    # accepts a file object and keeps it readable through the awaited upload.
+    with path.open("rb") as source:
+        uploaded = await client.files.create(
+            file=(path.name, source, mime), purpose="user_data"
+        )
     if not isinstance(uploaded.id, str) or not uploaded.id.startswith("file-"):
         raise RuntimeError("Meta did not return a valid file ID")
     return uploaded.id
@@ -219,7 +226,7 @@ async def run_video(path: Path, concepts: list[str], output: Path,
         if progress_callback is not None:
             progress_callback(event)
 
-    async with AsyncOpenAI(base_url=META_BASE_URL, api_key=model_key(), timeout=240.0) as client:
+    async with AsyncOpenAI(base_url=META_BASE_URL, api_key=model_key(), timeout=float(os.getenv("SAM_REQUEST_TIMEOUT_SECONDS", "900"))) as client:
         if file_id is None:
             progress({"phase": "uploading", "message": "Uploading clip to Meta SAM 3.1"})
             print(f"Uploading video: {path.name}", flush=True)

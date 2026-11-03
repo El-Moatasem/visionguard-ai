@@ -17,6 +17,7 @@ from typing import Any
 from fastapi import UploadFile
 
 from backend.app.config import ROOT
+from backend.app.services import db_store
 
 DEFAULT_MAX_BYTES = 100 * 1024 * 1024
 CHUNK_SIZE = 1024 * 1024
@@ -67,12 +68,19 @@ def video_paths(video_id: str) -> tuple[Path, Path]:
 
 def read_video(video_id: str) -> dict[str, Any]:
     info, _ = video_paths(video_id)
+    if db_store.enabled():
+        record = db_store.get_video(video_id)
+        if record is None:
+            raise VideoUploadError("Video not found", 404)
+        return record
     if not info.is_file():
         raise VideoUploadError("Video not found", 404)
     return json.loads(info.read_text(encoding="utf-8"))
 
 
 def list_videos(limit: int = 30) -> list[dict[str, Any]]:
+    if db_store.enabled():
+        return db_store.list_videos(limit)
     root = storage_dir()
     if not root.is_dir():
         return []
@@ -136,6 +144,8 @@ async def save_video(file: UploadFile, scenario: dict[str, Any] | None = None) -
         }
         info = root / f"{video_id}.json"
         info.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+        if db_store.enabled():
+            db_store.put_video(record)
         return record
     except Exception:
         pending.unlink(missing_ok=True)

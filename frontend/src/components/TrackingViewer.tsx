@@ -15,10 +15,22 @@ const PALETTE: Record<string, string> = {
 const MODES = [
   {name: "Warehouse: people + forklifts", concepts: ["person","forklift"]},
   {name: "Parking: cars", concepts: ["car"]},
-  {name: "Retail: carts + boxes", concepts: ["shopping_cart","cardboard_box"]},
+  {name: "Retail: people + carts + boxes", concepts: ["person","shopping_cart","cardboard_box"]},
+  {name: "Retail: carts + boxes (without people)", concepts: ["shopping_cart","cardboard_box"]},
   {name: "Construction: worker zone entry (person only)", concepts: ["person"]},
   {name: "Construction: people + excavators (extended)", concepts: ["person","excavator"]},
 ];
+
+// A legacy retail upload can have only cart/box metadata. Suggest person
+// tracking for NEW jobs, without modifying a saved or in-flight analysis.
+function recommendedConceptsForVideo(video: VideoItem): string[] {
+  const suggested = video.suggested_concepts?.length
+    ? video.suggested_concepts : ["person", "forklift"];
+  if (suggested.length === 2 && suggested[0] === "shopping_cart" && suggested[1] === "cardboard_box") {
+    return ["person", "shopping_cart", "cardboard_box"];
+  }
+  return [...suggested];
+}
 
 export default function TrackingViewer({ video, initialRule }: { video: VideoItem; initialRule?: RuleSpec }) {
   const element = useRef<HTMLVideoElement>(null);
@@ -36,12 +48,13 @@ export default function TrackingViewer({ video, initialRule }: { video: VideoIte
   const [cancelling, setCancelling] = useState(false);
   const [approvedRule, setApprovedRule] = useState<RuleSpec | null>(null);
   const [evaluation, setEvaluation] = useState<SafetyEvaluation | null>(null);
-  const [conceptSelection, setConceptSelection] = useState<string[]>(video.suggested_concepts?.length ? video.suggested_concepts : ["person", "forklift"]);
+  const [conceptSelection, setConceptSelection] = useState<string[]>(() => recommendedConceptsForVideo(video));
   const seekTo = (time: number) => { if (element.current) { element.current.currentTime = time; setSeconds(time); } };
 
   useEffect(() => {
     let current = true;
     setSeconds(0);
+    setConceptSelection(recommendedConceptsForVideo(video));
     setReport(null);
     setPreview(null);
     setJob(null);
@@ -193,7 +206,7 @@ export default function TrackingViewer({ video, initialRule }: { video: VideoIte
   const timelineMax = displayReport?.media_probe.duration_seconds ?? (fps ? Math.max(1, (displayReport?.boxes.at(-1)?.frame ?? 30) / fps) : 0);
   const timelineEntries = [...(evaluation?.events ?? []).map(x => ({type: "event" as const, start: x.start_seconds_approx, end: x.end_seconds_approx, id: x.event_id})),
     ...(evaluation?.review_items ?? []).map((x, i) => ({type: "review" as const, start: x.start_seconds_approx, end: x.end_seconds_approx, id: x.event_id ?? `review-${i}`}))];
-  const samMaxBytes = 25 * 1024 * 1024;
+  const samMaxBytes = 100 * 1024 * 1024;
   const tooLargeForSam = video.size_bytes > samMaxBytes;
   const busy = submitting || cancelling || ["queued", "running", "cancelling"].includes(job?.status ?? "");
 
@@ -268,7 +281,10 @@ export default function TrackingViewer({ video, initialRule }: { video: VideoIte
           {!MODES.some(m=>m.concepts.join()===conceptSelection.join()) && <option value="custom" disabled>Custom: {conceptSelection.join(", ")}</option>}
         </select>
       </div>
-      {job?.status === "completed" && job.concepts.join() !== conceptSelection.join() && <p className="helper">The saved tracking result uses {job.concepts.join(", ")}. Changing the concept selection requires a new billable analysis.</p>}
+      {job && <p className="helper" role="status">
+        {job.status === "running" || job.status === "queued" || job.status === "cancelling" ? "Current analysis" : "Saved analysis"} requested: <strong>{job.concepts.join(", ")}</strong>.
+        {job.concepts.join() !== conceptSelection.join() && " The selected preset applies only to a NEW billable SAM analysis; it does not alter this job."}
+      </p>}
       <button type="button" className="button button-primary" disabled={busy || !video.sam_compatible_container || tooLargeForSam}
         onClick={() => void analyze()}>{busy ? "Analyzing…" : job?.status === "completed" ? "Run fresh analysis (billable)" : "Analyze with SAM (billable)"}</button>
       {["queued", "running"].includes(job?.status ?? "") && <button type="button" className="button button-alert"
@@ -278,7 +294,7 @@ export default function TrackingViewer({ video, initialRule }: { video: VideoIte
       {job?.status === "cancelling" && <p className="helper" role="status">Stopping this job locally. Charges may still apply to Meta requests already started.</p>}
       {job?.status === "cancelled" && <p className="helper" role="status">Analysis cancelled; no final tracking result was published.</p>}
       {!video.sam_compatible_container && <p className="error">WebM is not supported by SAM. Convert to H.264 MP4 first.</p>}
-      {tooLargeForSam && <p className="error">This video exceeds the 25 MiB SAM analysis limit. Uploads may be up to 100 MiB, but clips must be compressed before inference.</p>}
+      {tooLargeForSam && <p className="error">This video exceeds this app’s 100 MiB SAM analysis limit. Prepare a smaller clip before inference.</p>}
       {job && <p className="helper" role="status">{job.message}</p>}
       {preview && !report && <p className="helper" role="status">
         Live progress preview: {preview.box_count} observed boxes so far.

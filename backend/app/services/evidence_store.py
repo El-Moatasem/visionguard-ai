@@ -22,6 +22,7 @@ from backend.app.services.safety_engine import evaluate_tracking
 from backend.app.services.safety_rules import RuleSpec
 from backend.app.services.tracking_jobs import get_job, get_result
 from backend.app.services.video_store import read_video, storage_dir
+from backend.app.services import db_store
 
 _LOCK = threading.RLock()
 _ID = re.compile(r"^[0-9a-f]{32}$")
@@ -60,6 +61,8 @@ def _path(report_id: str) -> Path:
 
 
 def _save(path: Path, record: dict[str, Any]) -> None:
+    if db_store.enabled():
+        db_store.put_evidence(record)
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(f".{path.stem}.{uuid.uuid4().hex}.tmp")
     try:
@@ -72,6 +75,11 @@ def _save(path: Path, record: dict[str, Any]) -> None:
 def get_evidence(report_id: str) -> dict[str, Any]:
     with _LOCK:
         path = _path(report_id)
+        if db_store.enabled():
+            record = db_store.get_evidence(report_id)
+            if record is None:
+                raise EvidenceError("Evidence report not found", 404)
+            return record
         if not path.is_file():
             raise EvidenceError("Evidence report not found", 404)
         try:
@@ -155,6 +163,12 @@ def list_evidence(tracking_job_id: str | None = None) -> list[dict[str, Any]]:
             uuid.UUID(tracking_job_id)
         except (TypeError, ValueError):
             raise EvidenceError("Invalid tracking job ID", 422) from None
+    if db_store.enabled():
+        rows = db_store.list_evidence(tracking_job_id, 30)
+        return [{"id": row["id"], "created_at": row["created_at"],
+                 "source": row["source"], "rule_name": row["rule"]["name"],
+                 "event_count": row["evaluation"]["event_count"],
+                 "review_count": row["evaluation"]["review_count"]} for row in rows]
     path = root()
     if not path.exists():
         return []

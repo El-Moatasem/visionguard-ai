@@ -31,7 +31,7 @@ SCENARIOS: dict[str, dict[str, Any]] = {
     "retail-clearance": {
         "id": "retail-clearance", "title": "Retail: shopping cart in aisle", "industry": "Retail",
         "description": "Inspect shopping carts occupying a designated clearance zone.",
-        "concepts": ["shopping_cart", "cardboard_box"], "rule_type": "object_in_zone",
+        "concepts": ["person", "shopping_cart", "cardboard_box"], "rule_type": "object_in_zone",
         "rule_concept": "shopping_cart", "duration": 1.0,
         "zone": [0.28, 0.2, 0.72, 0.95], "provenance": "synthetic_replay_available", "replay_id": "retail-cart-aisle",
         "expected": "Occupancy is not proof of obstruction; try a separate cardboard_box rule for boxes.",
