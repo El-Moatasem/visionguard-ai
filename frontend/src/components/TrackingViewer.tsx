@@ -16,7 +16,8 @@ const MODES = [
   {name: "Warehouse: people + forklifts", concepts: ["person","forklift"]},
   {name: "Parking: cars", concepts: ["car"]},
   {name: "Retail: carts + boxes", concepts: ["shopping_cart","cardboard_box"]},
-  {name: "Construction: people + excavators", concepts: ["person","excavator"]},
+  {name: "Construction: worker zone entry (person only)", concepts: ["person"]},
+  {name: "Construction: people + excavators (extended)", concepts: ["person","excavator"]},
 ];
 
 export default function TrackingViewer({ video, initialRule }: { video: VideoItem; initialRule?: RuleSpec }) {
@@ -164,7 +165,7 @@ export default function TrackingViewer({ video, initialRule }: { video: VideoIte
       const zone = {name: "Drawn safety zone", x_min: Math.min(drawStart.x,p.x),
         y_min: Math.min(drawStart.y,p.y), x_max: Math.max(drawStart.x,p.x), y_max: Math.max(drawStart.y,p.y)};
       if (zone.x_max-zone.x_min >= .02 && zone.y_max-zone.y_min >= .02) {
-        setSafetyZone(zone); setDrawing(false); setApprovedRule(null);
+        setSafetyZone(zone); setDrawing(false); setApprovedRule(null); setEvaluation(null);
       }
     }
     setDrawStart(null);setDrawCurrent(null);
@@ -185,7 +186,7 @@ export default function TrackingViewer({ video, initialRule }: { video: VideoIte
   const fps = displayReport?.media_probe.fps ?? displayReport?.media_metadata?.fps;
   const frame = fps ? Math.round(seconds * fps) : null;
   const overlays = frame === null ? [] : boxesByFrame.get(frame) ?? [];
-  const showOverlay = Boolean(displayReport && frame !== null && dimensions.width && dimensions.height);
+  const showOverlay = Boolean(dimensions.width && dimensions.height);
   const activeEvent = evaluation?.events.find(event => frame !== null && frame >= event.start_frame && frame <= event.end_frame);
   const activeReview = evaluation?.review_items.find(item => frame !== null && frame >= item.start_frame && frame <= item.end_frame);
   const flaggedTracks = new Set(activeEvent?.actor_tracks ?? activeReview?.actor_tracks ?? []);
@@ -205,7 +206,7 @@ export default function TrackingViewer({ video, initialRule }: { video: VideoIte
         onPointerDown={onDrawStart} onPointerMove={onDrawMove} onPointerUp={onDrawEnd}
         onPointerCancel={() => {setDrawStart(null);setDrawCurrent(null);}}
         preserveAspectRatio="xMidYMid meet" aria-label="Approximate SAM tracking boxes">
-        {report && <rect x={safetyZone.x_min*dimensions.width} y={safetyZone.y_min*dimensions.height}
+        {<rect x={safetyZone.x_min*dimensions.width} y={safetyZone.y_min*dimensions.height}
           width={(safetyZone.x_max-safetyZone.x_min)*dimensions.width}
           height={(safetyZone.y_max-safetyZone.y_min)*dimensions.height}
           fill="#e8b85a" fillOpacity="0.07" stroke="#e8b85a" strokeDasharray="12 8" strokeWidth={3} />}
@@ -223,6 +224,25 @@ export default function TrackingViewer({ video, initialRule }: { video: VideoIte
             fontSize={Math.max(12, dimensions.width / 70)} fontWeight="bold">{item.fragment_id}</text>
         </g>)}
       </svg>}
+    </div>
+    <div className="vg-pre-sam-zone-toolbar" aria-label="Monitoring zone setup">
+      <div className="vg-pre-sam-zone-copy">
+        <strong>Monitoring zone</strong>
+        <p className="helper">Draw a zone before or after SAM. The zone screens tracked observations; it does not crop video or reduce billable model requests.</p>
+        <p className="helper" aria-live="polite">Zone: {(safetyZone.x_min * 100).toFixed(0)}%–{(safetyZone.x_max * 100).toFixed(0)}% across, {(safetyZone.y_min * 100).toFixed(0)}%–{(safetyZone.y_max * 100).toFixed(0)}% down.</p>
+      </div>
+      <div className="vg-pre-sam-zone-buttons">
+        <button className="button button-secondary" type="button" aria-pressed={drawing}
+          disabled={!dimensions.width || !dimensions.height}
+          onClick={() => {setDrawing(value => !value); setDrawStart(null); setDrawCurrent(null);}}>
+          {drawing ? "Cancel zone drawing" : "Draw monitoring zone"}
+        </button>
+        <button className="button button-quiet" type="button"
+          onClick={() => {setSafetyZone({name: "Operating aisle", x_min:.2,y_min:.2,x_max:.8,y_max:.8}); setDrawing(false);setDrawStart(null);setDrawCurrent(null);setApprovedRule(null);setEvaluation(null);}}>
+          Reset zone
+        </button>
+      </div>
+      {drawing && <p className="safety-warning" role="status">Drag over the video to mark your monitoring area. Dragging temporarily disables video playback controls; select Cancel zone drawing to return to normal playback.</p>}
     </div>
       {timelineMax > 0 && evaluation && <div className="sceneops-timeline" aria-label="Approximate reviewed-event timeline">
         {timelineEntries.map(item => {
@@ -277,7 +297,7 @@ export default function TrackingViewer({ video, initialRule }: { video: VideoIte
         </div>)}
         {report.tracks.length === 0 && <p className="helper">No boxes matched the requested concepts. This can be a valid SAM result.</p>}
         </div>
-        {job?.status === "completed" && <SafetyRulePanel key={job.id} jobId={job.id} zone={safetyZone} onZoneChange={z => {setSafetyZone(z);setApprovedRule(null);}}
+        {job?.status === "completed" && <SafetyRulePanel key={`${job.id}:${safetyZone.x_min}:${safetyZone.y_min}:${safetyZone.x_max}:${safetyZone.y_max}`} jobId={job.id} zone={safetyZone} onZoneChange={z => {setSafetyZone(z);setApprovedRule(null);}}
           drawing={drawing} onDrawingChange={setDrawing}
           initialRule={initialRule} availableConcepts={job.concepts} availablePersonTracks={report.tracks.filter(t => t.concept === "person").map(t => t.track_id)}
           onEvaluated={(result,rule) => {setEvaluation(result);setApprovedRule(rule);}}

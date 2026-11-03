@@ -25,14 +25,17 @@ export default function SafetyRulePanel({ jobId, onZoneChange, zone, drawing, on
   onSeek: (seconds: number) => void;
   onEvaluated?: (evaluation: SafetyEvaluation | null, rule: RuleSpec | null) => void;
 }) {
-  const [ruleType, setRuleType] = useState<RuleType>(initialRule?.rule_type ?? "person_and_forklift_in_zone");
+  // A person-only construction run needs entry observations, not a forklift match.
+  // Keep the previous defaults for all other tracking concepts and supplied rules.
+  const personOnly = !initialRule && availableConcepts?.length === 1 && availableConcepts[0] === "person";
+  const [ruleType, setRuleType] = useState<RuleType>(initialRule?.rule_type ?? (personOnly ? "object_zone_entry" : "person_and_forklift_in_zone"));
   const [ruleConcept, setRuleConcept] = useState<string>(initialRule?.concept ?? availableConcepts?.[0] ?? "person");
   const [excludedOperators, setExcludedOperators] = useState<string[]>(initialRule?.excluded_operator_track_ids ?? []);
-  const [ruleName, setRuleName] = useState(initialRule?.name ?? "Worker and forklift in operating area");
+  const [ruleName, setRuleName] = useState(initialRule?.name ?? (personOnly ? "Worker enters construction zone" : "Worker and forklift in operating area"));
   const [duration, setDuration] = useState(initialRule?.min_duration_seconds ?? 0.5);
   const [gapTolerance, setGapTolerance] = useState(2);
   const [boundInputs, setBoundInputs] = useState<Record<string, string> | null>(null);
-  const [prompt, setPrompt] = useState("Flag a pedestrian and forklift observed in the same operating area for half a second.");
+  const [prompt, setPrompt] = useState(personOnly ? "Flag a worker observed entering the marked construction zone." : "Flag a pedestrian and forklift observed in the same operating area for half a second.");
   const [draft, setDraft] = useState<RuleDraft | null>(null);
   const [evaluation, setEvaluation] = useState<SafetyEvaluation | null>(null);
   const [busy, setBusy] = useState<"muse" | "evaluate" | null>(null);
