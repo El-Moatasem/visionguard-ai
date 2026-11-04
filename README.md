@@ -343,7 +343,7 @@ MIT applies to original repository code only. Meta models, third-party dependenc
 VisionGuard AI combines original project materials with third-party stock media used for illustration and demonstration.
 
 - **Demo video footage:** Warehouse, supermarket, parking-lot, and construction-site clips were sourced from [Pexels](https://www.pexels.com) under the [Pexels License](https://www.pexels.com/license/). The videos are not bundled in this repository.
-- **Stock photography:** Illustrative images were sourced from [Unsplash](https://unsplash.com) under the [Unsplash License](https://unsplash.com/license). Photo references and candidate footage sources are documented in [Demo Media Sources](docs/DEMO_REAL_MEDIA_SOURCES.md).
+- **Stock photography:** Illustrative images were sourced from [Unsplash](https://unsplash.com) under the [Unsplash License](https://unsplash.com/license).
 - **Original project visuals:** VisionGuard AI interfaces, tracking overlays, architecture diagrams, and custom scenario illustrations were developed for this project.
 
 ### Media usage and limitations
