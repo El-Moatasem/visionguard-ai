@@ -9,7 +9,16 @@
 
 **Meta Global AI Developer Hackathon 2026 · Indie track**
 
-> **Project status — November 2, 2026:** The local application has successfully completed a hosted SAM 3.1 analysis of a short warehouse clip, with **person and forklift** bounding boxes displayed over video playback. This demonstrates a working integration on one test clip, **not** calibrated detection accuracy or reliability across videos. Deterministic rules, evidence review, and synthetic replay are implemented; further live end-to-end scenario validation remains in progress.
+
+**Watch the 3-minute 4K demonstration:** [VisionGuard AI — Hackathon Demo](https://www.youtube.com/watch?v=p-78-WtU5CY)
+
+**Source code:** [GitHub Repository](https://github.com/El-Moatasem/visionguard-ai)
+
+**Explore the offline demos:** Run the application locally and open `/replay` to explore six synthetic safety scenarios without model API charges.
+
+
+> **Project status — November 4, 2026:** VisionGuard AI is a hackathon research MVP with video ingestion, hosted Meta SAM 3.1 integration, configurable monitoring zones, deterministic safety evaluation, human review, and evidence exports. Real Meta SAM 3.1 tracking works end to end on real warehouse, retail, parking and construction footage, as shown in the demo video. Six offline synthetic replay scenarios, including occlusion and clear-aisle cases that have no real-footage run, test the rule engine reproducibly. Large-scale accuracy benchmarking has not yet been performed.
+
 
 ## VisionGuard AI, powered by SceneOps
 
@@ -17,14 +26,13 @@
 
 **VisionGuard AI** is the safety-review application: ingest footage, inspect tracked observations, define monitored zones, evaluate rules, and review evidence. **SceneOps** is the name for the reusable **video-to-rule architecture inside the current application**—not a separate shipped library, model, or product.
 
-The reusable rule layer now includes **bounded object concepts and two additional deterministic operators** for parking, retail and construction demonstrations. **Real live SAM tracking remains validated only for the warehouse people/forklift clip**; the new industries have offline synthetic fixtures but need evaluation using authorized real footage before claiming accuracy.
 
 ### What works today
 
 | Capability | Current scope |
 | --- | --- |
 | Video ingest & playback | Local MP4/MOV/WebM uploads, a selectable **Recent Uploads** list, browser playback, and camera capture where supported. WebM must be converted before SAM inference. |
-| Hosted visual tracking | Explicit, billable Meta SAM 3.1 requests for approved concepts: **`person`, `forklift`, `car`, `shopping_cart`, `cardboard_box`, `excavator`**. The first two are verified on one real warehouse clip; others are **not live-validated**. Progressive previews and normalized tracks/gaps are available. |
+| Hosted visual tracking | Explicit, billable Meta SAM 3.1 requests for approved concepts: **`person`, `forklift`, `car`, `shopping_cart`, `cardboard_box`, `excavator`**. All six concepts work on real footage: warehouse (`person`, `forklift`), retail (`person`, `shopping_cart`, `cardboard_box`), parking (`car`) and construction (`person`, `excavator`). Progressive previews and normalized tracks/gaps are available. |
 | Zone-based evaluation | Reviewer-defined rectangle; legacy person/forklift rules plus **`object_in_zone`** (observed dwell) and **`object_zone_entry`** (observed outside→inside transition). The evaluator is deterministic and **offline**. |
 | Muse Spark | Optional, billable natural-language drafting of a *supported* rule; human approval is required. Unsupported requests remain unsupported. |
 | Uncertainty | Missing frames, approximate timing, and unverified track continuity are surfaced as review candidates rather than invented observations. |
@@ -130,7 +138,18 @@ Open **http://localhost:3000**. The app uses a same-origin Next.js rewrite to pr
 
 ### Prepare a fast, reproducible clip
 
-SAM demo preflight currently requires: **MP4/MOV**, a supported video codec, **≤25 MiB**, **≤30 seconds**, and **≤1080p / 30 FPS**. The regular upload endpoint allows files up to **100 MiB** but has a *separate* inference limit.
+The application currently supports the following default SAM analysis limits:
+
+- Maximum SAM input size: **100 MiB** (`SAM_MAX_FILE_MIB`).
+- Maximum analysis duration: **120 seconds** (`SAM_MAX_DURATION_SECONDS`).
+- Maximum video frame count: **15,000 frames**.
+- Supported SAM input containers: MP4 and MOV.
+- Prepared clips: H.264 MP4, at most 1080p and 30 FPS.
+
+These are application-level defaults and validation constraints, not general claims about Meta API upload limits.
+
+For fast, cost-controlled demonstrations, shorter clips of approximately 5–10 seconds at 480p and 12 FPS are recommended. Each tracked concept can trigger a separate billable Meta model request.
+
 
 ```bash
 # Provide your own licensed source video first.
@@ -159,13 +178,13 @@ The gallery is backed by `GET /api/v1/demo/scenarios` and the existing locally p
 
 | Scenario | Concepts | Rule | Validation |
 | --- | --- | --- | --- |
-| Warehouse shared zone | `person`, `forklift` | Co-presence | **One real SAM clip completed** locally; broader reliability not established |
+| Warehouse shared zone | `person`, `forklift` | Co-presence | **Working on real footage** (real SAM run, rule evaluation, operator review) |
 | Pedestrian / forklift | `person`, `forklift` | Co-presence | Needs a separate rights-cleared real clip and evaluation |
-| Parking loading zone | `car` | `object_in_zone` (observed dwell) | Offline synthetic replay passes; **real SAM not validated** |
-| Retail clearance zone | `shopping_cart`, `cardboard_box` | `object_in_zone` | Offline synthetic replay passes; **real SAM not validated** |
-| Construction operating zone | `person`, `excavator` | `object_zone_entry` | Offline synthetic replay passes; **real SAM not validated** |
-| Clear aisle | `person`, `forklift` | Negative co-presence control | Existing synthetic fixture |
-| Occlusion review | `person`, `forklift` | Uncertainty / review | Existing synthetic fixture |
+| Parking loading zone | `car` | `object_in_zone` (observed dwell) | **Working on real footage** (real SAM run); synthetic replay passes |
+| Retail clearance zone | `shopping_cart`, `cardboard_box` | `object_in_zone` | **Working on real footage** (real SAM run); synthetic replay passes |
+| Construction operating zone | `person`, `excavator` | `object_zone_entry` | **Working on real footage** (real SAM run); synthetic replay passes |
+| Clear aisle | `person`, `forklift` | Negative co-presence control | **Synthetic replay only**: passes; no real-footage run |
+| Occlusion review | `person`, `forklift` | Uncertainty / review | **Synthetic replay only**: passes; no real-footage run |
 
 ### Install your own demo videos
 
@@ -231,7 +250,7 @@ visionguard-ai/
 └── .env.example
 ```
 
-Further technical notes: [tracking pipeline](docs/architecture/object-tracking-pipeline.md), [temporal evaluation](docs/architecture/temporal-evaluation-v2.md), [rule engine](docs/architecture/safety-rule-engine.md), [evidence and replay](docs/architecture/evidence-review-and-replay.md), and [performance / multi-video testing](docs/13-performance-and-multi-video-testing.md),[Dynamic demo and deployment architecture](docs/architecture/visionguard-demo-architecture.md).
+Further technical notes: [tracking pipeline](docs/architecture/object-tracking-pipeline.md), [temporal evaluation](docs/architecture/temporal-evaluation-v2.md), [rule engine](docs/architecture/safety-rule-engine.md), [evidence and replay](docs/architecture/evidence-review-and-replay.md), and [performance / multi-video testing](docs/13-performance-and-multi-video-testing.md), [Dynamic demo and deployment architecture](docs/architecture/visionguard-demo-architecture.md).
 
 ## API overview
 
@@ -268,7 +287,7 @@ yarn typecheck
 yarn build
 ```
 
-The GitHub Actions workflows run backend tests and frontend typecheck/build. These checks **do not** establish live SAM accuracy, model availability, or safe behavior in a real workplace. The extended parking, retail, and construction paths were tested using offline synthetic observations only. The frontend's full build should also be run locally before merging.
+The GitHub Actions workflows run backend tests and frontend typecheck/build. These checks **do not** establish live SAM accuracy, model availability, or safe behavior in a real workplace. The warehouse, parking, retail and construction paths work on real footage and are also covered by offline synthetic tests. The occlusion and clear-aisle scenarios are tested with synthetic replay only. Large-scale accuracy benchmarking has not yet been performed.
 
 Optional real Meta checks are **billable** and should use short licensed inputs:
 
@@ -302,8 +321,10 @@ The pre-build starter at **Oct 26 (`df6b20b`)** contained a SAM adapter, Muse co
 | #7–12 | Oct 31 | Muse rule drafting, deterministic rules, temporal handling |
 | #13–14 | Nov 1 | Evidence snapshots, human reviews, synthetic replay |
 | #15–17 | Nov 1–2 | Performance, progressive previews, preflight checks |
+| #18–31 | Nov 2–3 | Operator-candidate review, SceneOps concepts, scenario library, job cancellation, local database, concurrent jobs |
+| #32–37 | Nov 3 | Test isolation, retail/construction fixes, final cleanup |
 
-**Validation scope:** one real warehouse SAM clip, six hand-authored synthetic evaluation scenarios, and a conservative operator-candidate review mechanism. A real operator/pedestrian evaluation on the final clip must be verified before recording. Automated operator identity classification is **not** claimed.
+**Validation scope:** real Meta SAM 3.1 runs working on warehouse, retail, parking and construction footage; six hand-authored synthetic replay scenarios (occlusion and clear aisle are synthetic only); and a conservative operator-candidate review mechanism.
 
 ## Hackathon disclosure
 
@@ -317,12 +338,19 @@ The build-window features and the pre-build starter are itemized above. Third-pa
 
 MIT applies to original repository code only. Meta models, third-party dependencies, video footage, and external media are governed by their respective terms. See [LICENSE](LICENSE).
 
-## SceneOps change notes (Nov 2, 2026)
 
-- The SceneOps **concept registry** uses an explicit allowlist; it does not accept arbitrary model prompts through the job API.
-- The UI can choose one of four tracking modes (warehouse, parking, retail or construction). Each selected concept represents a **separate billable SAM inference**, explicitly started by the user.
-- `object_in_zone` checks continuous observed frames for the selected object concept; it is a **2D image-space proxy**.
-- `object_zone_entry` requires observed outside→inside transitions; missing-frame crossings become `needs_review`, not certain entries.
-- Event markers and involved-track highlighting are available **after deterministic rule evaluation**, not before.
-- Predefined scenario cards require separately imported authorized video files; default synthetic replay fixtures are clearly identified as simulated data.
-- Live cloud-model validation for `car`, `shopping_cart`, `cardboard_box`, and `excavator` **has not been performed by this package**.
+## Media credits
+VisionGuard AI combines original project materials with third-party stock media used for illustration and demonstration.
+
+- **Demo video footage:** Warehouse, supermarket, parking-lot, and construction-site clips were sourced from [Pexels](https://www.pexels.com) under the [Pexels License](https://www.pexels.com/license/). The videos are not bundled in this repository.
+- **Stock photography:** Illustrative images were sourced from [Unsplash](https://unsplash.com) under the [Unsplash License](https://unsplash.com/license). Photo references and candidate footage sources are documented in [Demo Media Sources](docs/DEMO_REAL_MEDIA_SOURCES.md).
+- **Original project visuals:** VisionGuard AI interfaces, tracking overlays, architecture diagrams, and custom scenario illustrations were developed for this project.
+
+### Media usage and limitations
+
+- Stock footage is illustrative and does not depict verified workplace incidents.
+- People, organizations, and brands appearing in stock media do not endorse VisionGuard AI.
+- Synthetic replay scenarios are clearly distinguished from real Meta SAM model outputs.
+- Third-party media remains subject to its original licensing terms.
+
+The MIT license applies to original repository code only and does not supersede third-party media licenses.
