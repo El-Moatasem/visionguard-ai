@@ -22,7 +22,7 @@ python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 cd frontend && yarn install --frozen-lockfile && yarn dev --webpack
 ```
 
-**Data provenance:** `benchmarks/replay/*.json` are generated numeric coordinate fixtures, not actual SAM output, videos or proof of model accuracy. A real demo video requires rights-cleared source footage; `samples/`, `var/` and `outputs/` are excluded from Git. There are no downloadable real video assets in this package.
+**Data provenance:** `benchmarks/replay/*.json` are generated numeric coordinate fixtures, not actual SAM output, videos or proof of model accuracy. A real demo video requires rights-cleared source footage; `samples/`, `var/` and `outputs/` are excluded from Git. There are no downloadable real video assets in this repository.
 
 ## API
 

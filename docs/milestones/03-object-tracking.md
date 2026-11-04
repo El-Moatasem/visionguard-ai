@@ -30,4 +30,4 @@ Connect stored authorized clips to hosted Meta SAM 3.1, normalize returned `pers
 
 ## Testing posture
 
-Automated offline tests run now on every commit. The planned full manual benchmark may follow all five feature branches, but a basic **billable smoke test** before adding rules is recommended to surface API integration or video codec issues earlier. No live Meta request was executed during package generation.
+Automated offline tests run now on every commit. The planned full manual benchmark may follow all five feature branches, but a basic **billable smoke test** before adding rules is recommended to surface API integration or video codec issues earlier.
