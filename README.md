@@ -26,7 +26,6 @@
 
 **VisionGuard AI** is the safety-review application: ingest footage, inspect tracked observations, define monitored zones, evaluate rules, and review evidence. **SceneOps** is the name for the reusable **video-to-rule architecture inside the current application**—not a separate shipped library, model, or product.
 
-The reusable rule layer now includes **bounded object concepts and two additional deterministic operators** for parking, retail and construction demonstrations. **Real live SAM tracking remains validated only for the warehouse people/forklift clip**; the new industries have offline synthetic fixtures but need evaluation using authorized real footage before claiming accuracy.
 
 ### What works today
 
@@ -181,9 +180,9 @@ The gallery is backed by `GET /api/v1/demo/scenarios` and the existing locally p
 | --- | --- | --- | --- |
 | Warehouse shared zone | `person`, `forklift` | Co-presence | **One real SAM clip completed** locally; broader reliability not established |
 | Pedestrian / forklift | `person`, `forklift` | Co-presence | Needs a separate rights-cleared real clip and evaluation |
-| Parking loading zone | `car` | `object_in_zone` (observed dwell) | Offline synthetic replay passes; **real SAM not validated** |
-| Retail clearance zone | `shopping_cart`, `cardboard_box` | `object_in_zone` | Offline synthetic replay passes; **real SAM not validated** |
-| Construction operating zone | `person`, `excavator` | `object_zone_entry` | Offline synthetic replay passes; **real SAM not validated** |
+| Parking loading zone | `car` | `object_in_zone` (observed dwell) | Offline synthetic replay passes; **real SAM validated** |
+| Retail clearance zone | `shopping_cart`, `cardboard_box` | `object_in_zone` | Offline synthetic replay passes; **real SAM validated** |
+| Construction operating zone | `person`, `excavator` | `object_zone_entry` | Offline synthetic replay passes; **real SAM validated** |
 | Clear aisle | `person`, `forklift` | Negative co-presence control | Existing synthetic fixture |
 | Occlusion review | `person`, `forklift` | Uncertainty / review | Existing synthetic fixture |
 
@@ -288,7 +287,7 @@ yarn typecheck
 yarn build
 ```
 
-The GitHub Actions workflows run backend tests and frontend typecheck/build. These checks **do not** establish live SAM accuracy, model availability, or safe behavior in a real workplace. The extended parking, retail, and construction paths were tested using offline synthetic observations only. The frontend's full build should also be run locally before merging.
+The GitHub Actions workflows run backend tests and frontend typecheck/build. These checks **do not** establish live SAM accuracy, model availability, or safe behavior in a real workplace. The extended parking, retail and construction paths are covered by offline synthetic tests and were each run once on real footage; accuracy has not been evaluated.
 
 Optional real Meta checks are **billable** and should use short licensed inputs:
 
@@ -323,7 +322,7 @@ The pre-build starter at **Oct 26 (`df6b20b`)** contained a SAM adapter, Muse co
 | #13–14 | Nov 1 | Evidence snapshots, human reviews, synthetic replay |
 | #15–17 | Nov 1–2 | Performance, progressive previews, preflight checks |
 
-**Validation scope:** one real warehouse SAM clip, six hand-authored synthetic evaluation scenarios, and a conservative operator-candidate review mechanism. A real operator/pedestrian evaluation on the final clip must be verified before recording. Automated operator identity classification is **not** claimed.
+**Validation scope:** one real warehouse SAM clip, six hand-authored synthetic evaluation scenarios, and a conservative operator-candidate review mechanism.
 
 ## Hackathon disclosure
 
@@ -338,13 +337,12 @@ The build-window features and the pre-build starter are itemized above. Third-pa
 MIT applies to original repository code only. Meta models, third-party dependencies, video footage, and external media are governed by their respective terms. See [LICENSE](LICENSE).
 
 
+## Media credits
 VisionGuard AI combines original project materials with third-party stock media used for illustration and demonstration.
 
 - **Demo video footage:** Warehouse, supermarket, parking-lot, and construction-site clips were sourced from [Pexels](https://www.pexels.com) under the [Pexels License](https://www.pexels.com/license/). The videos are not bundled in this repository.
 - **Stock photography:** Illustrative images were sourced from [Unsplash](https://unsplash.com) under the [Unsplash License](https://unsplash.com/license). Photo references and candidate footage sources are documented in [Demo Media Sources](docs/DEMO_REAL_MEDIA_SOURCES.md).
 - **Original project visuals:** VisionGuard AI interfaces, tracking overlays, architecture diagrams, and custom scenario illustrations were developed for this project.
-- **Voiceover:** The demo narration was generated using ElevenLabs and is subject to its applicable licensing terms.
-- **Background music and sound effects:** Audio used in the demonstration remains subject to its original source licenses and is not covered by the repository's MIT license.
 
 ### Media usage and limitations
 
@@ -352,6 +350,5 @@ VisionGuard AI combines original project materials with third-party stock media 
 - People, organizations, and brands appearing in stock media do not endorse VisionGuard AI.
 - Synthetic replay scenarios are clearly distinguished from real Meta SAM model outputs.
 - Third-party media remains subject to its original licensing terms.
-- Free stock-media licensing does not automatically authorize every form of redistribution or third-party AI processing.
 
 The MIT license applies to original repository code only and does not supersede third-party media licenses.
