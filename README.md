@@ -9,7 +9,16 @@
 
 **Meta Global AI Developer Hackathon 2026 · Indie track**
 
-> **Project status — November 2, 2026:** The local application has successfully completed a hosted SAM 3.1 analysis of a short warehouse clip, with **person and forklift** bounding boxes displayed over video playback. This demonstrates a working integration on one test clip, **not** calibrated detection accuracy or reliability across videos. Deterministic rules, evidence review, and synthetic replay are implemented; further live end-to-end scenario validation remains in progress.
+
+**Watch the 3-minute 4K demonstration:** [VisionGuard AI — Hackathon Demo](https://www.youtube.com/watch?v=p-78-WtU5CY)
+
+**Source code:** [GitHub Repository](https://github.com/El-Moatasem/visionguard-ai)
+
+**Explore the offline demos:** Run the application locally and open `/replay` to explore six synthetic safety scenarios without model API charges.
+
+
+> **Project status — November 4, 2026:** VisionGuard AI is a hackathon research MVP with video ingestion, hosted Meta SAM 3.1 integration, configurable monitoring zones, deterministic safety evaluation, human review, and evidence exports. Real SAM tracking has been successfully demonstrated on warehouse footage. Six additional offline synthetic replay scenarios demonstrate the rule engine across different safety conditions. Broader live-model reliability and accuracy have not been established.
+
 
 ## VisionGuard AI, powered by SceneOps
 
@@ -130,7 +139,18 @@ Open **http://localhost:3000**. The app uses a same-origin Next.js rewrite to pr
 
 ### Prepare a fast, reproducible clip
 
-SAM demo preflight currently requires: **MP4/MOV**, a supported video codec, **≤25 MiB**, **≤30 seconds**, and **≤1080p / 30 FPS**. The regular upload endpoint allows files up to **100 MiB** but has a *separate* inference limit.
+The application currently supports the following default SAM analysis limits:
+
+- Maximum SAM input size: **100 MiB** (`SAM_MAX_FILE_MIB`).
+- Maximum analysis duration: **120 seconds** (`SAM_MAX_DURATION_SECONDS`).
+- Maximum video frame count: **15,000 frames**.
+- Supported SAM input containers: MP4 and MOV.
+- Prepared clips: H.264 MP4, at most 1080p and 30 FPS.
+
+These are application-level defaults and validation constraints, not general claims about Meta API upload limits.
+
+For fast, cost-controlled demonstrations, shorter clips of approximately 5–10 seconds at 480p and 12 FPS are recommended. Each tracked concept can trigger a separate billable Meta model request.
+
 
 ```bash
 # Provide your own licensed source video first.
@@ -317,12 +337,21 @@ The build-window features and the pre-build starter are itemized above. Third-pa
 
 MIT applies to original repository code only. Meta models, third-party dependencies, video footage, and external media are governed by their respective terms. See [LICENSE](LICENSE).
 
-## SceneOps change notes (Nov 2, 2026)
 
-- The SceneOps **concept registry** uses an explicit allowlist; it does not accept arbitrary model prompts through the job API.
-- The UI can choose one of four tracking modes (warehouse, parking, retail or construction). Each selected concept represents a **separate billable SAM inference**, explicitly started by the user.
-- `object_in_zone` checks continuous observed frames for the selected object concept; it is a **2D image-space proxy**.
-- `object_zone_entry` requires observed outside→inside transitions; missing-frame crossings become `needs_review`, not certain entries.
-- Event markers and involved-track highlighting are available **after deterministic rule evaluation**, not before.
-- Predefined scenario cards require separately imported authorized video files; default synthetic replay fixtures are clearly identified as simulated data.
-- Live cloud-model validation for `car`, `shopping_cart`, `cardboard_box`, and `excavator` **has not been performed by this package**.
+VisionGuard AI combines original project materials with third-party stock media used for illustration and demonstration.
+
+- **Demo video footage:** Warehouse, supermarket, parking-lot, and construction-site clips were sourced from [Pexels](https://www.pexels.com) under the [Pexels License](https://www.pexels.com/license/). The videos are not bundled in this repository.
+- **Stock photography:** Illustrative images were sourced from [Unsplash](https://unsplash.com) under the [Unsplash License](https://unsplash.com/license). Photo references and candidate footage sources are documented in [Demo Media Sources](docs/DEMO_REAL_MEDIA_SOURCES.md).
+- **Original project visuals:** VisionGuard AI interfaces, tracking overlays, architecture diagrams, and custom scenario illustrations were developed for this project.
+- **Voiceover:** The demo narration was generated using ElevenLabs and is subject to its applicable licensing terms.
+- **Background music and sound effects:** Audio used in the demonstration remains subject to its original source licenses and is not covered by the repository's MIT license.
+
+### Media usage and limitations
+
+- Stock footage is illustrative and does not depict verified workplace incidents.
+- People, organizations, and brands appearing in stock media do not endorse VisionGuard AI.
+- Synthetic replay scenarios are clearly distinguished from real Meta SAM model outputs.
+- Third-party media remains subject to its original licensing terms.
+- Free stock-media licensing does not automatically authorize every form of redistribution or third-party AI processing.
+
+The MIT license applies to original repository code only and does not supersede third-party media licenses.
